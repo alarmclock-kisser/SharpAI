@@ -1,0 +1,24 @@
+@page "/"
+@namespace SharpAI.WebApp.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SharpAI.WebApp</title>
+    <base href="/" />
+    <link rel="icon" href="favicon.ico" />
+    <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="_content/Radzen.Blazor/css/material-base.css" />
+</head>
+<body>
+    <app>
+        <component type="typeof(SharpAI.WebApp.Components.App)" render-mode="ServerPrerendered" />
+    </app>
+    <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
+    <script src="_framework/blazor.server.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

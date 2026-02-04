@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "Both (https)",
+    "Projects": [
+      {
+        "Path": "SharpAI.Api\\SharpAI.Api.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "SharpAI.WebApp\\SharpAI.WebApp.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

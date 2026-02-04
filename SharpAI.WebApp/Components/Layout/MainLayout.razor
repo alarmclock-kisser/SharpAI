@@ -1,0 +1,32 @@
+﻿@inherits LayoutComponentBase
+
+<RadzenLayout>
+    <RadzenHeader>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween" Gap="1rem" Style="width: 100%;">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                <RadzenSidebarToggle Expanded="@sidebarExpanded" Click="@ToggleSidebar" />
+                <RadzenText Text="SharpAI.WebApp" TextStyle="TextStyle.Subtitle1" />
+            </RadzenStack>
+            <RadzenLink Path="https://learn.microsoft.com/aspnet/core/" Text="About" Target="_blank" />
+        </RadzenStack>
+    </RadzenHeader>
+
+    <RadzenSidebar @bind-Expanded="sidebarExpanded" ExpandedWidth="260px" CollapsedWidth="64px">
+        <NavMenu Collapsed="@(!sidebarExpanded)" />
+    </RadzenSidebar>
+
+    <RadzenBody>
+        <RadzenStack Gap="1rem">
+            @Body
+        </RadzenStack>
+    </RadzenBody>
+</RadzenLayout>
+
+@code {
+    private bool sidebarExpanded = true;
+
+    private void ToggleSidebar()
+    {
+        sidebarExpanded = !sidebarExpanded;
+    }
+}

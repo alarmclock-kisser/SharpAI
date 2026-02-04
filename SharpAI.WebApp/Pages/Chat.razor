@@ -1,0 +1,146 @@
+﻿@page "/"
+@page "/chat"
+@using Radzen
+@using Radzen.Blazor
+@using SharpAI.Shared
+@using SharpAI.WebApp.ViewModels
+@inject ChatViewModel Vm
+
+<RadzenHeading Size="H1" Text="Chat" />
+
+<RadzenRow Gap="1.5rem">
+    <RadzenColumn Size="12" SizeLG="8">
+        <RadzenCard Variant="Variant.Outlined" Title="Conversation">
+            <ChildContent>
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween" Gap="1rem" Style="margin-bottom: 0.75rem;">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                        <RadzenText Text="@($"Model: {(Vm.IsModelLoaded == true ? $"{Vm.LoadedModelName} loaded" : "Not loaded")}")" Style="@($"color: {(Vm.IsModelLoaded == true ? "green" : "red")};")" />
+                        <RadzenText Text="@($"Context: {Vm.ContextLabel}")" TextStyle="TextStyle.Caption" />
+                    </RadzenStack>
+                    <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Refresh" Size="ButtonSize.Small" Click="@Vm.RefreshAsync" />
+                </RadzenStack>
+
+                <div style="height: 420px; overflow-y: auto;" @ref="messageContainer">
+                    @if (Vm.Messages.Count == 0)
+                    {
+                        <RadzenText Text="No messages yet." TextStyle="TextStyle.Caption" />
+                    }
+                    else
+                    {
+                        <RadzenStack Gap="0.75rem">
+                            @foreach (var message in Vm.Messages)
+                            {
+                                <RadzenCard Variant="Variant.Outlined">
+                                    <ChildContent>
+                                        <RadzenStack Gap="0.35rem">
+                                            <RadzenText Text="@message.Role" TextStyle="TextStyle.Subtitle2" />
+                                            <RadzenText Text="@message.Content" Style="white-space: pre-wrap;" />
+                                            <RadzenText Text="@message.Timestamp.ToLocalTime().ToString("g")" TextStyle="TextStyle.Caption" />
+                                            @if (message.Stats != null)
+                                            {
+                                                <RadzenText Text="@($"Tokens: {message.Stats.TokensUsed} | Elapsed: {message.Stats.SecondsElapsed:F2}s | Tokens/s: {message.Stats.TokensPerSecond:F2}")" TextStyle="TextStyle.Caption" />
+                                            }
+                                        </RadzenStack>
+                                    </ChildContent>
+                                </RadzenCard>
+                            }
+                        </RadzenStack>
+                    }
+                </div>
+            </ChildContent>
+        </RadzenCard>
+    </RadzenColumn>
+    <RadzenColumn Size="12" SizeLG="4">
+        <RadzenCard Variant="Variant.Outlined" Title="Generate">
+            <ChildContent>
+                <RadzenStack Gap="0.75rem">
+                    <RadzenFormField Text="Prompt">
+                        <RadzenTextArea @bind-Value="Vm.Prompt" Rows="6" />
+                    </RadzenFormField>
+                    <RadzenRow Gap="0.5rem">
+                        <RadzenColumn Size="12" SizeMD="6">
+                            <RadzenFormField Text="Max tokens">
+                                <RadzenNumeric TValue="int" @bind-Value="Vm.MaxTokens" Min="1" Step="1" />
+                            </RadzenFormField>
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMD="6">
+                            <RadzenFormField Text="Temperature">
+                                <RadzenNumeric TValue="float" @bind-Value="Vm.Temperature" Step="0.1" Min="0" Max="2" />
+                            </RadzenFormField>
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMD="6">
+                            <RadzenFormField Text="Top P">
+                                <RadzenNumeric TValue="float" @bind-Value="Vm.TopP" Step="0.05" Min="0" Max="1" />
+                            </RadzenFormField>
+                        </RadzenColumn>
+                    </RadzenRow>
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenCheckBox @bind-Value="Vm.StreamResponse" Name="streamResponse" />
+                        <RadzenLabel Text="Stream response" Component="streamResponse" />
+                    </RadzenStack>
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenCheckBox @bind-Value="Vm.Isolated" Name="isolated" />
+                        <RadzenLabel Text="Isolated (no context)" Component="isolated" />
+                    </RadzenStack>
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                        <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Images" Click="@Vm.ToggleImagesAsync" />
+                    </RadzenStack>
+                    @if (Vm.ShowImages)
+                    {
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            @if (Vm.ImageSelections.Count == 0)
+                            {
+                                <RadzenText Text="No images available." TextStyle="TextStyle.Caption" />
+                            }
+                            else
+                            {
+                                @foreach (var image in Vm.ImageSelections)
+                                {
+                                    <div style="display: flex; align-items: center; gap: 0.35rem; padding: 0.35rem; border: 1px solid var(--rz-base-200); border-radius: 6px;">
+                                        <RadzenCheckBox @bind-Value="image.IsSelected" TValue="bool" />
+                                        @if (!string.IsNullOrWhiteSpace(image.Image.ThumbnailBase64))
+                                        {
+                                            <RadzenImage Path="@($"data:image/png;base64,{image.Image.ThumbnailBase64}")" Style="width: 64px; height: 64px; object-fit: cover;" />
+                                        }
+                                        else
+                                        {
+                                            <RadzenText Text="No thumbnail" TextStyle="TextStyle.Caption" />
+                                        }
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                        <RadzenButton ButtonStyle="ButtonStyle.Primary" Text="Send" Click="@Vm.SendAsync" Disabled="@Vm.IsGenerating" />
+                        <RadzenButton ButtonStyle="ButtonStyle.Danger" Text="Cancel" Click="@Vm.CancelAsync" Disabled="@(!Vm.IsGenerating)" />
+                    </RadzenStack>
+                </RadzenStack>
+            </ChildContent>
+        </RadzenCard>
+    </RadzenColumn>
+</RadzenRow>
+
+@code {
+    private ElementReference messageContainer;
+
+    protected override void OnInitialized()
+    {
+        Vm.NotifyStateChanged = () => InvokeAsync(StateHasChanged);
+    }
+
+    protected override Task OnInitializedAsync()
+    {
+        return Vm.InitializeAsync();
+    }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Vm.SetMessageContainer(messageContainer);
+        }
+
+        return Task.CompletedTask;
+    }
+}

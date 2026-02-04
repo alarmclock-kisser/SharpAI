@@ -1,0 +1,80 @@
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Text;
+using System.Threading;
+
+namespace SharpAI.Core
+{
+    public static class StaticLogger
+    {
+        public static readonly ConcurrentDictionary<DateTime, string> LogEntries = new ConcurrentDictionary<DateTime, string>();
+        public static readonly BindingList<string> LogEntriesBindingList = new BindingList<string>();
+
+        // UI synchronization context (set from the UI at startup)
+        private static SynchronizationContext? UiContext;
+
+        public static void SetUiContext(SynchronizationContext context)
+        {
+            UiContext = context;
+        }
+
+
+        public static void Log(string message)
+        {
+            DateTime timestamp = DateTime.Now;
+            string logEntry = $"[{timestamp:HH:mm:ss}] {message}";
+            LogEntries[timestamp] = logEntry;
+
+            if (UiContext != null)
+            {
+                UiContext.Post(_ => LogEntriesBindingList.Add(logEntry), null);
+            }
+            else
+            {
+                // Fallback: add on current thread
+                lock (LogEntriesBindingList)
+                {
+                    LogEntriesBindingList.Add(logEntry);
+                }
+            }
+        }
+
+        public static void Log(Exception ex)
+        {
+            Log($"Exception: {ex.Message}\nStack Trace: {ex.StackTrace}");
+        }
+
+        public static async System.Threading.Tasks.Task LogAsync(string message)
+        {
+            await System.Threading.Tasks.Task.Run(() => Log(message));
+        }
+
+        public static async System.Threading.Tasks.Task LogAsync(Exception ex)
+        {
+            await System.Threading.Tasks.Task.Run(() => Log(ex));
+        }
+
+
+
+        public static void ClearLogs()
+        {
+            LogEntries.Clear();
+            if (UiContext != null)
+            {
+                UiContext.Post(_ => LogEntriesBindingList.Clear(), null);
+            }
+            else
+            {
+                lock (LogEntriesBindingList)
+                {
+                    LogEntriesBindingList.Clear();
+                }
+            }
+        }
+
+
+
+    }
+}

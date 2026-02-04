@@ -1,0 +1,95 @@
+﻿@page "/model"
+@using SharpAI.Shared
+@using System.Linq
+@using Radzen
+@using Radzen.Blazor
+@using SharpAI.WebApp.ViewModels
+@inject ModelViewModel Vm
+
+<RadzenHeading Size="H1" Text="Model" />
+
+@if (!string.IsNullOrWhiteSpace(Vm.ErrorMessage))
+{
+    <RadzenAlert Severity="AlertSeverity.Warning" Style="margin-bottom: 1rem;">
+        @Vm.ErrorMessage
+    </RadzenAlert>
+}
+
+<RadzenRow Gap="1.5rem">
+    <RadzenColumn Size="12" SizeLG="6">
+        <RadzenCard Variant="Variant.Outlined" Title="Available models">
+            <ChildContent>
+                <RadzenStack Gap="0.75rem">
+                    <RadzenFormField Text="Model">
+                        <RadzenDropDown Data="Vm.Models"
+                                        TextProperty="ModelName"
+                                        ValueProperty="FilePath"
+                                        @bind-Value="Vm.SelectedModelPath"
+                                        Disabled="@(Vm.IsLoaded || Vm.IsBusy)"
+                                        Placeholder="Select a model...">
+                            <Template Context="model">
+                                @model.ModelName (@((model.FileSizeMb / 1024.0).ToString("0.00")) GB)
+                            </Template>
+                            <ValueTemplate Context="model">
+                                @model.ModelName (@((model.FileSizeMb / 1024.0).ToString("0.00")) GB)
+                            </ValueTemplate>
+                        </RadzenDropDown>
+                    </RadzenFormField>
+
+                    <RadzenRow Gap="0.5rem">
+                        <RadzenColumn Size="12" SizeMD="6">
+                            <RadzenFormField Text="Context length">
+                                <RadzenNumeric TValue="int"
+                                               Value="Vm.ContextSize"
+                                               ValueChanged="Vm.OnContextSizeChanged"
+                                               ValueExpression="() => Vm.ContextSize"
+                                               Min="128"
+                                               Step="1"
+                                               Disabled="@(Vm.IsLoaded || Vm.IsBusy)" />
+                            </RadzenFormField>
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMD="6">
+                            <RadzenFormField Text="Backend">
+                                <RadzenDropDown Data="Enum.GetValues<LlamaBackend>()" @bind-Value="Vm.Backend" Disabled="@(Vm.IsLoaded || Vm.IsBusy)" />
+                            </RadzenFormField>
+                        </RadzenColumn>
+                    </RadzenRow>
+
+                    <RadzenRow Gap="0.5rem">
+                        <RadzenColumn Size="12" SizeMD="6">
+                            <RadzenFormField Text="Default temperature">
+                                <RadzenNumeric @bind-Value="Vm.DefaultTemperature" Step="0.1" Min="0" Max="2" Disabled="@(Vm.IsLoaded || Vm.IsBusy)" />
+                            </RadzenFormField>
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMD="6">
+                            <RadzenFormField Text="Max tokens">
+                                <RadzenNumeric TValue="int"
+                                               Value="Vm.MaxTokens"
+                                               ValueChanged="Vm.OnMaxTokensChanged"
+                                               ValueExpression="() => Vm.MaxTokens"
+                                               Min="1"
+                                               Step="1"
+                                               Disabled="@(Vm.IsLoaded || Vm.IsBusy)" />
+                            </RadzenFormField>
+                        </RadzenColumn>
+                    </RadzenRow>
+
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                        <RadzenButton ButtonStyle="@(Vm.IsLoaded ? ButtonStyle.Danger : ButtonStyle.Primary)"
+                                      Text="@(Vm.IsLoaded ? "Unload model" : (Vm.IsBusy ? "Loading..." : "Load model"))"
+                                      Click="@Vm.ToggleModelAsync"
+                                      Disabled="@Vm.IsBusy" />
+                        <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Refresh" Click="@Vm.RefreshAsync" Disabled="@Vm.IsBusy" />
+                    </RadzenStack>
+                </RadzenStack>
+            </ChildContent>
+        </RadzenCard>
+    </RadzenColumn>
+</RadzenRow>
+
+@code {
+    protected override Task OnInitializedAsync()
+    {
+        return Vm.InitializeAsync();
+    }
+}

@@ -1,0 +1,63 @@
+﻿@page "/context"
+@using Radzen
+@using Radzen.Blazor
+@using SharpAI.Shared
+@using SharpAI.WebApp.ViewModels
+@inject ContextViewModel Vm
+
+<RadzenHeading Size="H1" Text="Context" />
+
+<RadzenRow Gap="1.5rem">
+    <RadzenColumn Size="12" SizeLG="6">
+        <RadzenCard Variant="Variant.Outlined" Title="Available contexts">
+            <ChildContent>
+                <RadzenStack Gap="0.75rem">
+                    <RadzenListBox Data="Vm.Contexts"
+                                   ValueProperty="FilePath"
+                                   @bind-Value="Vm.SelectedContextPath"
+                                   Style="width: 100%; height: 280px;">
+                        <Template Context="context">
+                            @ContextViewModel.GetContextLabel(context) (@context.Messages.Count)
+                        </Template>
+                    </RadzenListBox>
+
+                    <RadzenFormField Text="Save as (optional)">
+                        <RadzenTextBox @bind-Value="Vm.SaveName" Placeholder="context-name" />
+                    </RadzenFormField>
+
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                        <RadzenButton ButtonStyle="ButtonStyle.Primary" Text="Load" Click="@Vm.LoadAsync" />
+                        <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Save" Click="@Vm.SaveAsync" />
+                        <RadzenButton ButtonStyle="ButtonStyle.Secondary" Text="New" Click="@Vm.CreateAsync" />
+                        <RadzenButton ButtonStyle="ButtonStyle.Danger" Text="Delete" Click="@Vm.DeleteAsync" />
+                    </RadzenStack>
+                                                                                                                        
+                </RadzenStack>
+            </ChildContent>
+        </RadzenCard>
+    </RadzenColumn>
+    <RadzenColumn Size="12" SizeLG="6">
+        <RadzenCard Variant="Variant.Outlined" Title="Current context">
+            <ChildContent>
+                @if (Vm.CurrentContext == null)
+                {
+                    <RadzenText Text="No context loaded." TextStyle="TextStyle.Caption" />
+                }
+                else
+                {
+                    <RadzenStack Gap="0.5rem">
+                        <RadzenText Text="@($"File: {(string.IsNullOrWhiteSpace(Vm.CurrentContext.FilePath) ? "Temporary" : Vm.CurrentContext.FilePath)}")" />
+                        <RadzenText Text="@($"Messages: {Vm.CurrentContext.Messages.Count}")" />
+                    </RadzenStack>
+                }
+            </ChildContent>
+        </RadzenCard>
+    </RadzenColumn>
+</RadzenRow>
+
+@code {
+    protected override Task OnInitializedAsync()
+    {
+        return Vm.InitializeAsync();
+    }
+}

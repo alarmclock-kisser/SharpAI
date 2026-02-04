@@ -1,0 +1,18 @@
+﻿﻿﻿﻿﻿@using Microsoft.AspNetCore.Components.Routing
+@using SharpAI.WebApp.Components.Layout
+<Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(MainLayout)">
+            <RadzenStack Gap="0.5rem">
+                <RadzenHeading Size="H1" Text="Not found" />
+                <RadzenText Text="Sorry, there's nothing at this address." />
+            </RadzenStack>
+        </LayoutView>
+    </NotFound>
+</Router>
+<HeadOutlet />
+<script src="app.js"></script>

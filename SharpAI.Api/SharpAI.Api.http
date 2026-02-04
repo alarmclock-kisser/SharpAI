@@ -1,0 +1,6 @@
+@SharpAI.Api_HostAddress = http://localhost:5076
+
+GET {{SharpAI.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

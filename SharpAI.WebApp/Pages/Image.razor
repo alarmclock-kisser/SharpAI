@@ -1,0 +1,62 @@
+﻿@page "/image"
+@using Microsoft.AspNetCore.Components.Forms
+@using SharpAI.Shared
+@using Radzen
+@using Radzen.Blazor
+@using System.Linq
+@using System.IO
+@using SharpAI.WebApp.ViewModels
+@inject ImageViewModel Vm
+
+<RadzenHeading Size="H1" Text="Images" />
+
+<RadzenRow Gap="1.5rem">
+    <RadzenColumn Size="12" SizeLG="4">
+        <RadzenCard Variant="Variant.Outlined" Title="Upload">
+            <ChildContent>
+                <RadzenStack Gap="0.75rem">
+                    <RadzenUpload Auto="false" ChooseText="Select image" Accept="image/*" Change="@Vm.OnFileSelectedAsync" ShowFileList="false" />
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                        <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Refresh" Click="@Vm.RefreshAsync" />
+                    </RadzenStack>
+                </RadzenStack>
+            </ChildContent>
+        </RadzenCard>
+    </RadzenColumn>
+    <RadzenColumn Size="12" SizeLG="8">
+        <RadzenRow Gap="0.75rem">
+            @if (Vm.Images.Count == 0)
+            {
+                <RadzenText Text="No images available." TextStyle="TextStyle.Caption" />
+            }
+            else
+            {
+                @foreach (var image in Vm.Images)
+                {
+                    <RadzenColumn Size="12" SizeMD="6" SizeXL="4">
+                        <RadzenCard Variant="Variant.Outlined">
+                            <ChildContent>
+                                <RadzenStack Gap="0.5rem">
+                                    @if (!string.IsNullOrWhiteSpace(image.ThumbnailBase64))
+                                    {
+                                        <RadzenImage Path="@($"data:image/png;base64,{image.ThumbnailBase64}")" Style="width: 100%; height: auto;" />
+                                    }
+                                    <RadzenText Text="@System.IO.Path.GetFileName(image.FilePath)" TextStyle="TextStyle.Subtitle2" />
+                                    <RadzenText Text="@($"{image.Width} x {image.Height} · {image.SizeInKb:0.0} KB")" TextStyle="TextStyle.Caption" />
+                                    <RadzenButton ButtonStyle="ButtonStyle.Danger" Text="Delete" Size="ButtonSize.Small" Click="@(() => Vm.DeleteAsync(image.Id))" />
+                                </RadzenStack>
+                            </ChildContent>
+                        </RadzenCard>
+                    </RadzenColumn>
+                }
+            }
+        </RadzenRow>
+    </RadzenColumn>
+</RadzenRow>
+
+@code {
+    protected override Task OnInitializedAsync()
+    {
+        return Vm.InitializeAsync();
+    }
+}

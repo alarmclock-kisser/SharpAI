@@ -1,0 +1,12 @@
+﻿<RadzenPanelMenu Style="width: 100%;">
+    <RadzenPanelMenuItem Text="@(Collapsed ? string.Empty : "Chat")" Path="/chat" Icon="chat_bubble" />
+    <RadzenPanelMenuItem Text="@(Collapsed ? string.Empty : "Model")" Path="/model" Icon="memory" />
+    <RadzenPanelMenuItem Text="@(Collapsed ? string.Empty : "Context")" Path="/context" Icon="folder" />
+    <RadzenPanelMenuItem Text="@(Collapsed ? string.Empty : "Images")" Path="/image" Icon="image" />
+</RadzenPanelMenu>
+
+@code {
+    [Parameter]
+    public bool Collapsed { get; set; }
+}
+

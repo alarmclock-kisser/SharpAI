@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="SharpAI.Api/SharpAI.Api.csproj" />
+  <Project Path="SharpAI.Client/SharpAI.Client.csproj" />
+  <Project Path="SharpAI.Core/SharpAI.Core.csproj" />
+  <Project Path="SharpAI.Runtime/SharpAI.Runtime.csproj" />
+  <Project Path="SharpAI.Shared/SharpAI.Shared.csproj" />
+  <Project Path="SharpAI.WebApp/SharpAI.WebApp.csproj" />
+</Solution>
