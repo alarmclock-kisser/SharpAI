@@ -71,6 +71,34 @@ namespace SharpAI.Runtime
 
             var stopwatch = Stopwatch.StartNew();
 
+            // --- MULTIMODAL HANDLING ---
+            byte[]? firstImage = null;
+            if (generationRequest.Base64Images != null && generationRequest.Base64Images.Count > 0)
+            {
+                if (this.llamaVlWeights != null)
+                {
+                    // Use the first image for multimodal inference
+                    try
+                    {
+                        firstImage = Convert.FromBase64String(generationRequest.Base64Images[0]);
+                        StaticLogger.Log("Image detected. Using Multimodal Inferenz.");
+                    }
+                    catch (Exception ex)
+                    {
+                        StaticLogger.Log("Failed to decode base64 image for multimodal inference.");
+                        StaticLogger.Log(ex);
+                        firstImage = null;
+                    }
+                }
+                else
+                {
+                    // Fallback: note in prompt that an image was attached but we have no VL projector
+                    var imgNotice = "[System: Image attached but no vision projector loaded]\n";
+                    // prepend notice to prompt later when building full prompt
+                    generationRequest.Prompt = imgNotice + (generationRequest.Prompt ?? string.Empty);
+                }
+            }
+
             LlamaContextData? contextToUse = null;
             var isIsolated = generationRequest.Isolated;
             if (isIsolated)
@@ -147,7 +175,21 @@ namespace SharpAI.Runtime
                 yield break;
             }
 
-            await foreach (var chunk in executor.InferAsync(fullPrompt, inferenceParams, ct).WithCancellation(ct).ConfigureAwait(false))
+            // Set images on the executor for multimodal inference
+            if (firstImage != null && executor.IsMultiModal)
+            {
+                executor.Images.Clear();
+                executor.Images.Add(firstImage);
+                StaticLogger.Log("Starting multimodal inference (text + image).");
+            }
+            else if (executor.IsMultiModal)
+            {
+                executor.Images.Clear();
+            }
+
+            var inferenceStream = executor.InferAsync(fullPrompt, inferenceParams, ct);
+
+            await foreach (var chunk in inferenceStream.WithCancellation(ct).ConfigureAwait(false))
             {
                 responseBuilder.Append(chunk);
                 if (generationRequest.Stream)

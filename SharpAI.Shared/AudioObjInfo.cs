@@ -19,11 +19,11 @@ namespace SharpAI.Shared
 
         public AudioObjInfo(Guid id, DateTime createdAt, string filePath, string name, TimeSpan durationTimeSpan)
         {
-            Id = id;
-            CreatedAt = createdAt;
-            FilePath = filePath;
-            Name = string.IsNullOrEmpty(name) ? id.ToString() : name;
-            DurationInSeconds = durationTimeSpan.TotalSeconds;
+            this.Id = id;
+            this.CreatedAt = createdAt;
+            this.FilePath = filePath;
+            this.Name = string.IsNullOrEmpty(name) ? id.ToString() : name;
+            this.DurationInSeconds = durationTimeSpan.TotalSeconds;
         }
     }
 }

@@ -1,9 +1,12 @@
 ﻿using LLama;
+using LLama.Abstractions;
 using LLama.Common;
+using LLama.Native;
 using SharpAI.Core;
 using SharpAI.Shared;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,8 +18,9 @@ namespace SharpAI.Runtime
         private LlamaModelFile? loadedModelFile;
         private LlamaModelLoadRequest? loadedModelRequest;
         private LLamaWeights? llamaWeights;
+        private LLavaWeights? llamaVlWeights;
         private LLamaContext? llamaContext;
-        private InteractiveExecutor? llamaExecutor;
+        private ILLamaExecutor? llamaExecutor;
         private LlamaContextData? primedContext;
         private int primedMessageCount;
 
@@ -27,7 +31,7 @@ namespace SharpAI.Runtime
 
 
 
-        public async Task<LlamaModelFile?> LoadModelAsync(LlamaModelLoadRequest loadRequest, bool fuzzyMatch = false, IProgress<double>? progress = null, CancellationToken ct = default)
+        public async Task<LlamaModelFile?> LoadModelAsync(LlamaModelLoadRequest loadRequest, bool fuzzyMatch = false, bool tryMultimodal = true, IProgress<double>? progress = null, CancellationToken ct = default)
         {
             // If a model is already loaded, unload it first
             if (loadRequest == null || loadRequest.ModelFile == null)
@@ -85,19 +89,109 @@ namespace SharpAI.Runtime
             progress?.Report(0.25);
             await Task.Yield();
 
+            // If the selected LlamaModelFile already has an associated MMProjFilePath (discovered
+            // during model enumeration), use it unless an explicit MMProjPath was provided in the request.
+            if (string.IsNullOrEmpty(loadRequest.MMProjPath) && !string.IsNullOrEmpty(loadRequest.ModelFile?.MMProjFilePath))
+            {
+                var mmproj = loadRequest.ModelFile.MMProjFilePath!;
+                if (File.Exists(mmproj))
+                {
+                    loadRequest.MMProjPath = mmproj;
+                    StaticLogger.Log($"Using associated MMProj from model listing: {mmproj}");
+                }
+            }
+
+            // If multimodal was requested and no projector path was provided,
+            // try to discover a suitable .mmproj file in the same directory as the model.
+            if (tryMultimodal && string.IsNullOrEmpty(loadRequest.MMProjPath))
+            {
+                try
+                {
+                    var modelDir = Path.GetDirectoryName(loadRequest?.ModelFile?.FilePath) ?? string.Empty;
+                    StaticLogger.Log($"tryMultimodal requested. Searching for .mmproj in '{modelDir}'...");
+
+                    // Prefer a projector with the same base name as the model file (e.g. model.gguf -> model.mmproj)
+                    var sameBase = Path.Combine(modelDir, Path.GetFileNameWithoutExtension(loadRequest?.ModelFile?.FilePath) + ".mmproj");
+                    if (File.Exists(sameBase))
+                    {
+                        loadRequest?.MMProjPath = sameBase;
+                        StaticLogger.Log($"Auto-detected matching mmproj next to model: {sameBase}");
+                    }
+                    else
+                    {
+                        var mmprojCandidates = Directory.GetFiles(modelDir, "*.mmproj");
+                        if (mmprojCandidates.Length == 1)
+                        {
+                            loadRequest?.MMProjPath = mmprojCandidates[0];
+                            StaticLogger.Log($"Auto-detected single mmproj in model directory: {loadRequest?.MMProjPath}");
+                        }
+                        else if (mmprojCandidates.Length > 1)
+                        {
+                            // Try to fuzzy match by base name
+                            var baseName = Path.GetFileNameWithoutExtension(loadRequest?.ModelFile?.FilePath);
+                            var tagged = mmprojCandidates.FirstOrDefault(f => Path.GetFileNameWithoutExtension(f).IndexOf(baseName ?? "xyz", StringComparison.OrdinalIgnoreCase) >= 0);
+                            if (!string.IsNullOrEmpty(tagged))
+                            {
+                                loadRequest?.MMProjPath = tagged;
+                                StaticLogger.Log($"Auto-detected mmproj by name match: {tagged}");
+                            }
+                            else
+                            {
+                                StaticLogger.Log($"Multiple mmproj files found in '{modelDir}', not auto-selecting. Candidates: {string.Join(", ", mmprojCandidates)}");
+                            }
+                        }
+                        else
+                        {
+                            StaticLogger.Log($"No mmproj files found in '{modelDir}'.");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StaticLogger.Log("Error while searching for mmproj: ");
+                    StaticLogger.Log(ex);
+                }
+            }
+
             this.llamaWeights = LLamaWeights.LoadFromFile(modelParams);
+            if (!string.IsNullOrEmpty(loadRequest?.MMProjPath) && File.Exists(loadRequest.MMProjPath))
+            {
+                try
+                {
+                    StaticLogger.Log($"Loading Vision Projector: {loadRequest.MMProjPath}");
+                    StaticLogger.Log("Note: LLamaSharp 0.24 uses the LLaVA/CLIP pipeline. Only LLaVA-compatible mmproj files are supported (e.g. LLaVA 1.5/1.6, BakLLaVA). Gemma 3 (SigLIP) and Qwen 2.5 VL require the newer mtmd API and are NOT supported for vision.");
+                    this.llamaVlWeights = LLavaWeights.LoadFromFile(loadRequest.MMProjPath);
+                    StaticLogger.Log("Vision Projector loaded successfully.");
+                }
+                catch (Exception ex)
+                {
+                    StaticLogger.Log($"Failed to load Vision Projector — model will be loaded in text-only mode.");
+                    StaticLogger.Log($"This typically means the mmproj file is not compatible with the LLaVA/CLIP pipeline (e.g. Gemma 3 SigLIP, Qwen 2.5 VL).");
+                    StaticLogger.Log(ex);
+                    this.llamaVlWeights?.Dispose();
+                    this.llamaVlWeights = null;
+                }
+            }
             this.llamaContext = this.llamaWeights.CreateContext(modelParams);
-            this.llamaExecutor = new InteractiveExecutor(this.llamaContext);
+            if (this.llamaVlWeights != null)
+            {
+                // Übergabe von Context UND Projector (mmproj)
+                this.llamaExecutor = new InteractiveExecutor(this.llamaContext, this.llamaVlWeights);
+            }
+            else
+            {
+                this.llamaExecutor = new InteractiveExecutor(this.llamaContext);
+            }
             this.primedContext = null;
             this.primedMessageCount = 0;
 
-            this.loadedModelFile = loadRequest.ModelFile;
+            this.loadedModelFile = loadRequest?.ModelFile;
             this.loadedModelRequest = loadRequest;
 
             progress?.Report(1);
 
             // Use StaticLogger to log the loading process or errors
-            StaticLogger.Log($"Loaded model '{loadRequest.ModelFile.ModelName}' with context size {modelParams.ContextSize} using {backend}.");
+            StaticLogger.Log($"Loaded model '{loadRequest?.ModelFile?.ModelName}' with context size {modelParams.ContextSize} using {backend}.");
             return this.loadedModelFile;
         }
 
@@ -124,6 +218,8 @@ namespace SharpAI.Runtime
             this.llamaContext = null;
             this.llamaWeights?.Dispose();
             this.llamaWeights = null;
+            this.llamaVlWeights?.Dispose();
+            this.llamaVlWeights = null;
             this.primedContext = null;
             this.primedMessageCount = 0;
 
@@ -153,7 +249,14 @@ namespace SharpAI.Runtime
 
             this.llamaContext?.Dispose();
             this.llamaContext = this.llamaWeights.CreateContext(modelParams);
-            this.llamaExecutor = new InteractiveExecutor(this.llamaContext);
+            if (this.llamaVlWeights != null)
+            {
+                this.llamaExecutor = new InteractiveExecutor(this.llamaContext, this.llamaVlWeights);
+            }
+            else
+            {
+                this.llamaExecutor = new InteractiveExecutor(this.llamaContext);
+            }
             this.primedContext = null;
             this.primedMessageCount = 0;
             return true;

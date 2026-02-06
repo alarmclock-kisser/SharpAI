@@ -14,7 +14,7 @@ namespace SharpAI.Api.Controllers
 
         public LogController(Appsettings appsettings)
         {
-            _appsettings = appsettings;
+            this._appsettings = appsettings;
         }
 
 
@@ -23,12 +23,12 @@ namespace SharpAI.Api.Controllers
         {
             try
             {
-                return Ok(this._appsettings);
+                return this.Ok(this._appsettings);
             }
             catch (Exception ex)
             {
                 StaticLogger.Log($"[Error] Exception in GetAppSettings: {ex}");
-                return StatusCode(500, "Error retrieving app settings");
+                return this.StatusCode(500, "Error retrieving app settings");
             }
         }
 
@@ -45,12 +45,12 @@ namespace SharpAI.Api.Controllers
                     snapshot = StaticLogger.LogEntriesBindingList.ToList();
                 }
 
-                return Ok(snapshot);
+                return this.Ok(snapshot);
             }
             catch (Exception ex)
             {
                 StaticLogger.Log($"[Error] Exception in GetLog: {ex}");
-                return StatusCode(500, "Error reading logs");
+                return this.StatusCode(500, "Error reading logs");
             }
         }
 
@@ -60,12 +60,12 @@ namespace SharpAI.Api.Controllers
             try
             {
                 var dict = StaticLogger.LogEntries.ToDictionary(entry => entry.Key, entry => entry.Value);
-                return Ok(dict);
+                return this.Ok(dict);
             }
             catch (Exception ex)
             {
                 StaticLogger.Log($"[Error] Exception in GetEntriesLog: {ex}");
-                return StatusCode(500, "Error reading logs");
+                return this.StatusCode(500, "Error reading logs");
             }
         }
 

@@ -28,10 +28,10 @@
                                         Disabled="@(Vm.IsLoaded || Vm.IsBusy)"
                                         Placeholder="Select a model...">
                             <Template Context="model">
-                                @model.ModelName (@((model.FileSizeMb / 1024.0).ToString("0.00")) GB)
+                                @model.ModelDescriptor
                             </Template>
                             <ValueTemplate Context="model">
-                                @model.ModelName (@((model.FileSizeMb / 1024.0).ToString("0.00")) GB)
+                                @model.ModelDescriptor
                             </ValueTemplate>
                         </RadzenDropDown>
                     </RadzenFormField>

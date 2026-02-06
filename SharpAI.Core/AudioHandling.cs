@@ -22,11 +22,11 @@ namespace SharpAI.Core
         public readonly ConcurrentDictionary<Guid, ImageObj> WaveformCache = new ConcurrentDictionary<Guid, ImageObj>();
 
 
-        public AudioObj? this[Guid id] => Audios.FirstOrDefault(a => a.Id == id);
-        public AudioObj? this[int index] => (index >= 0 && index < Audios.Count) ? Audios[index] : null;
-        public AudioObj? this[string name, bool fuzzyMatch = true] => fuzzyMatch ? Audios.FirstOrDefault(a => a.Name.Contains(name, StringComparison.OrdinalIgnoreCase)) : Audios.FirstOrDefault(a => string.Equals(a.Name, name, StringComparison.OrdinalIgnoreCase));
+        public AudioObj? this[Guid id] => this.Audios.FirstOrDefault(a => a.Id == id);
+        public AudioObj? this[int index] => (index >= 0 && index < this.Audios.Count) ? this.Audios[index] : null;
+        public AudioObj? this[string name, bool fuzzyMatch = true] => fuzzyMatch ? this.Audios.FirstOrDefault(a => a.Name.Contains(name, StringComparison.OrdinalIgnoreCase)) : this.Audios.FirstOrDefault(a => string.Equals(a.Name, name, StringComparison.OrdinalIgnoreCase));
 
-        public bool IsRecording => recordingCts != null && recordingCts?.IsCancellationRequested == false;
+        public bool IsRecording => this.recordingCts != null && this.recordingCts?.IsCancellationRequested == false;
 
         public AudioHandling(string? customExportDir = null, string[]? additionalRessourcePaths = null)
         {
@@ -59,7 +59,7 @@ namespace SharpAI.Core
         // Add & Import
         public bool AddAudio(AudioObj audioObj)
         {
-            Audios.Add(audioObj);
+            this.Audios.Add(audioObj);
             return true;
         }
 
@@ -125,7 +125,7 @@ namespace SharpAI.Core
             // Wir testen jedes Gerät kurz (200ms)
             for (int i = 0; i < deviceCount; i++)
             {
-                float currentPeak = TestDevicePeak(i);
+                float currentPeak = this.TestDevicePeak(i);
                 if (currentPeak > maxPeak)
                 {
                     maxPeak = currentPeak;
@@ -163,7 +163,7 @@ namespace SharpAI.Core
         public async Task<AudioObj?> RecordAudioAsync(int? deviceIndex = null, int sampleRate = 44100, int bitDepth = 16, int channels = 2)
         {
             var wf = new WaveFormat(sampleRate, bitDepth, channels);
-            return await RecordAudioAsync(wf, deviceIndex).ConfigureAwait(false);
+            return await this.RecordAudioAsync(wf, deviceIndex).ConfigureAwait(false);
         }
 
         // Record using a WaveFormat - more flexible
@@ -171,7 +171,7 @@ namespace SharpAI.Core
         {
             if (deviceIndex == null)
             {
-                deviceIndex = FindActiveMicrophoneIndex();
+                deviceIndex = this.FindActiveMicrophoneIndex();
                 if (deviceIndex == -1)
                 {
                     await StaticLogger.LogAsync("No recording devices found.");
@@ -179,15 +179,15 @@ namespace SharpAI.Core
                 }
             }
 
-            if (recordingCts != null)
+            if (this.recordingCts != null)
             {
                 await StaticLogger.LogAsync("Recording already in progress.").ConfigureAwait(false);
                 return null;
             }
 
             var tcs = new TaskCompletionSource<AudioObj>(TaskCreationOptions.RunContinuationsAsynchronously);
-            recordingCts = new CancellationTokenSource();
-            var ct = recordingCts.Token;
+            this.recordingCts = new CancellationTokenSource();
+            var ct = this.recordingCts.Token;
 
             var sampleList = new List<float>();
 
@@ -267,22 +267,22 @@ namespace SharpAI.Core
             await StaticLogger.LogAsync("Recording stopped. Processing audio...").ConfigureAwait(false);
             var result = await tcs.Task.ConfigureAwait(false);
 
-            recordingCts.Dispose();
-            recordingCts = null;
+            this.recordingCts.Dispose();
+            this.recordingCts = null;
 
             return result;
         }
 
         public bool StopRecording()
         {
-            if (recordingCts == null)
+            if (this.recordingCts == null)
             {
                 return false;
             }
 
             try
             {
-                recordingCts.Cancel();
+                this.recordingCts.Cancel();
                 return true;
             }
             catch
@@ -297,9 +297,9 @@ namespace SharpAI.Core
 
         public bool RemoveAudio(AudioObj audioObj)
         {
-            if (Audios.Contains(audioObj))
+            if (this.Audios.Contains(audioObj))
             {
-                Audios.Remove(audioObj);
+                this.Audios.Remove(audioObj);
                 return true;
             }
 
@@ -308,10 +308,10 @@ namespace SharpAI.Core
 
         public bool RemoveAudio(Guid audioId)
         {
-            var audioObj = Audios.FirstOrDefault(a => a.Id == audioId);
+            var audioObj = this.Audios.FirstOrDefault(a => a.Id == audioId);
             if (audioObj != null)
             {
-                Audios.Remove(audioObj);
+                this.Audios.Remove(audioObj);
                 return true;
             }
             return false;
@@ -322,15 +322,15 @@ namespace SharpAI.Core
             AudioObj? audioObj;
             if (fuzzyMatch)
             {
-                audioObj = Audios.FirstOrDefault(a => a.Name.Contains(name, StringComparison.OrdinalIgnoreCase));
+                audioObj = this.Audios.FirstOrDefault(a => a.Name.Contains(name, StringComparison.OrdinalIgnoreCase));
             }
             else
             {
-                audioObj = Audios.FirstOrDefault(a => string.Equals(a.Name, name, StringComparison.OrdinalIgnoreCase));
+                audioObj = this.Audios.FirstOrDefault(a => string.Equals(a.Name, name, StringComparison.OrdinalIgnoreCase));
             }
             if (audioObj != null)
             {
-                Audios.Remove(audioObj);
+                this.Audios.Remove(audioObj);
                 return true;
             }
             return false;
@@ -339,8 +339,8 @@ namespace SharpAI.Core
 
         public int ClearAudios()
         {
-            int count = Audios.Count;
-            foreach (var audio in Audios)
+            int count = this.Audios.Count;
+            foreach (var audio in this.Audios)
             {
                 audio.Dispose();
             }
@@ -349,18 +349,18 @@ namespace SharpAI.Core
 
         public async Task ClearAudiosAsync()
         {
-            var disposeTasks = Audios.Select(a => Task.Run(() => a.Dispose())).ToArray();
+            var disposeTasks = this.Audios.Select(a => Task.Run(() => a.Dispose())).ToArray();
             await Task.WhenAll(disposeTasks);
-            Audios.Clear();
+            this.Audios.Clear();
         }
 
         public async ValueTask DisposeAsync()
         {
-            var disposeTasks = Audios.Select(a => Task.Run(() => a.Dispose())).ToArray();
+            var disposeTasks = this.Audios.Select(a => Task.Run(() => a.Dispose())).ToArray();
 
             await Task.WhenAll(disposeTasks);
 
-            Audios.Clear();
+            this.Audios.Clear();
 
             GC.SuppressFinalize(this);
         }

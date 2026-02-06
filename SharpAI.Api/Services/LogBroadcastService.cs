@@ -15,13 +15,13 @@ namespace SharpAI.Api.Services
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            StaticLogger.LogAdded += OnLogAdded;
+            StaticLogger.LogAdded += this.OnLogAdded;
             return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            StaticLogger.LogAdded -= OnLogAdded;
+            StaticLogger.LogAdded -= this.OnLogAdded;
             return Task.CompletedTask;
         }
 

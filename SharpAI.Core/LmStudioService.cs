@@ -19,12 +19,12 @@ namespace SharpAI.Core
         {
             if (!string.IsNullOrEmpty(differentApiUrl))
             {
-                LmStudioApiBaseUrl = differentApiUrl;
+                this.LmStudioApiBaseUrl = differentApiUrl;
             }
 
-            Http = new HttpClient()
+            this.Http = new HttpClient()
             {
-                BaseAddress = new Uri(LmStudioApiBaseUrl),
+                BaseAddress = new Uri(this.LmStudioApiBaseUrl),
                 Timeout = TimeSpan.FromSeconds(timeoutSeconds),
                 MaxResponseContentBufferSize = 1024 * 1024 * 64 // 64 MB
             };
@@ -34,7 +34,7 @@ namespace SharpAI.Core
         {
             try
             {
-                var response = await Http.GetAsync("/models");
+                var response = await this.Http.GetAsync("/models");
                 response.EnsureSuccessStatusCode();
                 var content = await response.Content.ReadAsStringAsync();
                 var models = System.Text.Json.JsonSerializer.Deserialize<List<LmStudioModel>>(content, new System.Text.Json.JsonSerializerOptions

@@ -199,7 +199,7 @@ namespace SharpAI.WebApp.ViewModels
             this.whisperCts = new CancellationTokenSource();
             this.WhisperProgress = null;
             this.WhisperOutput = string.Empty;
-            var progressTask = TrackWhisperProgressAsync(this.whisperCts.Token);
+            var progressTask = this.TrackWhisperProgressAsync(this.whisperCts.Token);
             try
             {
                 if (this.StreamResponse)

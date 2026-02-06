@@ -54,8 +54,9 @@ namespace SharpAI.Runtime
                         _ => LlamaBackend.CPU
                     };
 
-                    LlamaModelLoadRequest request = new LlamaModelLoadRequest(modelFile, maxContextSize, backend);
-                    var loadedModel = this.LoadModelAsync(request).GetAwaiter().GetResult();
+                    // Loaded by UI WebApp request now
+                    /*LlamaModelLoadRequest request = new LlamaModelLoadRequest(modelFile, maxContextSize, backend);
+                    var loadedModel = this.LoadModelAsync(request).GetAwaiter().GetResult();*/
                 }
             }
         }
@@ -76,12 +77,44 @@ namespace SharpAI.Runtime
             }
 
             // Verify each directory exists
-            this.ModelDirectories = this.ModelDirectories.Where(dir => Directory.Exists(Environment.ExpandEnvironmentVariables(dir))).ToList();
+            this.ModelDirectories = this.ModelDirectories.Where(dir => Directory.Exists(Path.GetFullPath(dir))).ToList();
 
             // Get ModelFile dtos
-            this.ModelFiles = this.ModelDirectories.SelectMany(dir => Directory.GetFiles(Environment.ExpandEnvironmentVariables(dir), "*.gguf", SearchOption.AllDirectories))
-                .Select(filePath => new LlamaModelFile(filePath))
+            var allGguf = this.ModelDirectories
+                .SelectMany(dir => Directory.Exists(dir) ? Directory.GetFiles(dir, "*.gguf", SearchOption.AllDirectories) : Array.Empty<string>())
                 .ToList();
+
+            var groupedByDir = allGguf.GroupBy(p => Path.GetDirectoryName(p) ?? string.Empty);
+            var modelFiles = new List<LlamaModelFile>();
+
+            foreach (var grp in groupedByDir)
+            {
+                var files = grp.ToList();
+                // If exactly two gguf files exist and one contains 'mmproj' in its filename,
+                // treat them as a pair: the non-mmproj is the main model, the mmproj is the projector.
+                if (files.Count == 2)
+                {
+                    var mmprojCandidate = files.FirstOrDefault(f => Path.GetFileName(f).IndexOf("mmproj", StringComparison.OrdinalIgnoreCase) >= 0);
+                    var other = files.FirstOrDefault(f => !string.Equals(f, mmprojCandidate, StringComparison.OrdinalIgnoreCase));
+                    if (!string.IsNullOrEmpty(mmprojCandidate) && !string.IsNullOrEmpty(other))
+                    {
+                        var mf = new LlamaModelFile(other)
+                        {
+                            MMProjFilePath = mmprojCandidate
+                        };
+                        modelFiles.Add(mf);
+                        continue;
+                    }
+                }
+
+                // Otherwise, add each gguf file as its own model entry
+                foreach (var f in files)
+                {
+                    modelFiles.Add(new LlamaModelFile(f));
+                }
+            }
+
+            this.ModelFiles = modelFiles;
 
             return this.ModelFiles.Select(mf => Path.GetFullPath(mf.FilePath)).ToArray();
         }

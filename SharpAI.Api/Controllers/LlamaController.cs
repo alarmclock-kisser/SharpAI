@@ -83,7 +83,7 @@ namespace SharpAI.Api.Controllers
 
         // Load & unload
         [HttpPost("model/load")]
-        public async Task<ActionResult<LlamaModelFile?>> LoadModelAsync([FromBody] LlamaModelLoadRequest loadRequest, [FromQuery] bool fuzzyMatch = false, [FromQuery] bool forceUnload = true, CancellationToken ct = default)
+        public async Task<ActionResult<LlamaModelFile?>> LoadModelAsync([FromBody] LlamaModelLoadRequest loadRequest, [FromQuery] bool fuzzyMatch = false, [FromQuery] bool tryMultimodal = true, [FromQuery] bool forceUnload = true, CancellationToken ct = default)
         {
             if (this.Llama.IsModelLoaded)
             {
@@ -99,7 +99,7 @@ namespace SharpAI.Api.Controllers
 
             try
             {
-                var loadedModel = await this.Llama.LoadModelAsync(loadRequest, fuzzyMatch, null, ct);
+                var loadedModel = await this.Llama.LoadModelAsync(loadRequest, fuzzyMatch, tryMultimodal, null, ct);
                 if (loadedModel == null)
                 {
                     return this.StatusCode(500, "Failed to load model.");
@@ -113,7 +113,7 @@ namespace SharpAI.Api.Controllers
         }
 
         [HttpPost("model/load/simple")]
-        public async Task<ActionResult<LlamaModelFile?>> LoadModelSimpleAsync([FromQuery] string modelNameOrPath, [FromQuery] bool fuzzyMatch = true, [FromQuery] bool forceUnload = true, [FromQuery] int maxTokens = 1024, [FromQuery] LlamaBackend backend = LlamaBackend.CUDA, CancellationToken ct = default)
+        public async Task<ActionResult<LlamaModelFile?>> LoadModelSimpleAsync([FromQuery] string modelNameOrPath, [FromQuery] bool fuzzyMatch = true, [FromQuery] bool tryMultimodal = true, [FromQuery] bool forceUnload = true, [FromQuery] int maxTokens = 1024, [FromQuery] LlamaBackend backend = LlamaBackend.CUDA, CancellationToken ct = default)
         {
             if (this.Llama.IsModelLoaded)
             {
@@ -136,7 +136,7 @@ namespace SharpAI.Api.Controllers
                 }
 
                 var loadRequest = new LlamaModelLoadRequest(modelFile, maxTokens, backend);
-                var loadedModel = await this.Llama.LoadModelAsync(loadRequest, fuzzyMatch, null, ct);
+                var loadedModel = await this.Llama.LoadModelAsync(loadRequest, fuzzyMatch, tryMultimodal, null, ct);
                 if (loadedModel == null)
                 {
                     return this.StatusCode(500, "Failed to load model.");

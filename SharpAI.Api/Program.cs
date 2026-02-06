@@ -1,4 +1,7 @@
 
+
+
+
 namespace SharpAI.Api
 {
     public class Program
@@ -28,7 +31,7 @@ namespace SharpAI.Api
 
             // Add services to the container.
             builder.Services.AddSingleton(appsettings);
-            builder.Services.AddSingleton<SharpAI.Runtime.LlamaService>(sp => new Runtime.LlamaService(appsettings.LlamaModelDirectories.ToArray(), autoLoadLlama ? appsettings?.DefaultLlamaModel : null, appsettings.PreferredLlamaBackend, appsettings.MaxContextTokens, appsettings.DefaultContext, appsettings.SystemPrompt));
+            builder.Services.AddSingleton<SharpAI.Runtime.LlamaService>(sp => new Runtime.LlamaService(appsettings.LlamaModelDirectories.ToArray(), appsettings?.AutoLoadLlama == true ? appsettings?.DefaultLlamaModel : null, appsettings?.PreferredLlamaBackend ?? "CPU", appsettings!= null ? appsettings.MaxContextTokens : 1024, appsettings?.DefaultContext, appsettings?.SystemPrompt));
             builder.Services.AddSingleton<SharpAI.Runtime.OnnxService>(sp => new Runtime.OnnxService(appsettings.WhisperModelDirectories.ToArray()));
             builder.Services.AddSingleton < SharpAI.Core.ImageCollection>(sp => new SharpAI.Core.ImageCollection(false, appsettings.RessourceImagePaths.ToArray()));
             builder.Services.AddSingleton<SharpAI.Core.AudioHandling>(sp => new SharpAI.Core.AudioHandling(appsettings.CustomAudioExportDirectory, appsettings.RessourceAudioPaths.ToArray()));

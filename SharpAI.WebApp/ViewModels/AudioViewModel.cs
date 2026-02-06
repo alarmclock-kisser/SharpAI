@@ -161,7 +161,7 @@ namespace SharpAI.WebApp.ViewModels
                     this.IsRecording = false;
                     this.StatusMessage = ok ? "Recording stopped." : "Failed to stop recording.";
                     await this.RefreshAsync();
-                    await RefreshUntilAudioAddedAsync(beforeCount, TimeSpan.FromSeconds(6));
+                    await this.RefreshUntilAudioAddedAsync(beforeCount, TimeSpan.FromSeconds(6));
                 }
                 else
                 {
@@ -181,7 +181,7 @@ namespace SharpAI.WebApp.ViewModels
                             }
                         });
                     }
-                    await RefreshUntilRecordingStateAsync(true, TimeSpan.FromSeconds(4));
+                    await this.RefreshUntilRecordingStateAsync(true, TimeSpan.FromSeconds(4));
                 }
             }
             catch (Exception ex)

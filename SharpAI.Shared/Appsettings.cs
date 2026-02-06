@@ -27,6 +27,7 @@ namespace SharpAI.Shared
         public double Temperature { get; set; } = 0.7;
         public double TopP { get; set; } = 0.9;
 
+        public bool AutoLoadLlama { get; set; } = false;
 
 
     }

@@ -20,14 +20,14 @@ namespace SharpAI.Runtime
 
         public async Task<string?> TranscribeAsync(AudioObj audio, string? language = null, bool taskTranslate = false, bool useTimestamps = false, bool useOverlap = true, double chunkDuration = 20, IProgress<double>? progress = null, CancellationToken ct = default)
         {
-            if (!IsInitialized && !await InitializeAsync(CurrentModel)) return null;
-            if (CurrentModel == null) return null;
+            if (!this.IsInitialized && !await this.InitializeAsync(this.CurrentModel)) return null;
+            if (this.CurrentModel == null) return null;
 
             try
             {
                 // 1. Audio-Vorbereitung (Whisper Standard: 16kHz, Mono, 30s)
                 StaticLogger.Log($"Whisper: preparing audio (sr={audio.SampleRate}, ch={audio.Channels}, samples={audio.Data.Length}).");
-                float[] pcmData = await PrepareAudioForWhisperAsync(audio);
+                float[] pcmData = await this.PrepareAudioForWhisperAsync(audio);
                 StaticLogger.Log($"Whisper: prepared PCM length={pcmData.Length}.");
 
                 if (ct.IsCancellationRequested)
@@ -39,7 +39,7 @@ namespace SharpAI.Runtime
                 // so chunkSamples is always 480000 regardless of chunkDuration.
                 // chunkDuration controls the stride (how much we advance per chunk).
                 const int chunkSamples = 480000;
-                int featureSize = GetFeatureSizeFromConfig();
+                int featureSize = this.GetFeatureSizeFromConfig();
                 int durationSamples = Math.Max(SampleRate, (int)(chunkDuration * SampleRate));
                 int effectiveChunkForStride = Math.Min(durationSamples, chunkSamples);
                 int overlapSamples = useOverlap ? Math.Min(effectiveChunkForStride / 2, SampleRate * 2) : 0;
@@ -47,7 +47,7 @@ namespace SharpAI.Runtime
                 int totalChunks = (int)Math.Ceiling(pcmData.Length / (double)strideSamples);
                 StaticLogger.Log($"Whisper: chunkDuration={chunkDuration}s, strideSamples={strideSamples}, totalChunks={totalChunks}.");
                 var combinedResult = new StringBuilder();
-                UpdateWhisperProgress(0, progress);
+                this.UpdateWhisperProgress(0, progress);
 
                 for (int chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++)
                 {
@@ -63,7 +63,7 @@ namespace SharpAI.Runtime
                     Array.Copy(pcmData, offset, chunk, 0, copyLength);
                     StaticLogger.Log($"Whisper: chunk {chunkIndex + 1}/{totalChunks}, samples={chunk.Length}, copied={copyLength}.");
 
-                    var melFeatures = ComputeMelSpectrogram(chunk, featureSize);
+                    var melFeatures = this.ComputeMelSpectrogram(chunk, featureSize);
                     StaticLogger.Log($"Whisper: mel features shape=[{string.Join(",", melFeatures.Dimensions.ToArray())}].");
 
                     if (ct.IsCancellationRequested)
@@ -76,7 +76,7 @@ namespace SharpAI.Runtime
                         NamedOnnxValue.CreateFromTensor("input_features", melFeatures)
                     };
 
-                    using var encoderResults = _encoderSession!.Run(encoderInputs);
+                    using var encoderResults = this._encoderSession!.Run(encoderInputs);
                     var hiddenStates = encoderResults.First().Value as DenseTensor<float>;
                     if (hiddenStates == null) return null;
                     StaticLogger.Log($"Whisper: encoder hidden states shape=[{string.Join(",", hiddenStates.Dimensions.ToArray())}].");
@@ -86,7 +86,7 @@ namespace SharpAI.Runtime
 
                     try
                     {
-                        var chunkText = await Task.Run(() => RunDecoderLoop(hiddenStatesCopy, language, taskTranslate, useTimestamps, chunkDuration, ct));
+                        var chunkText = await Task.Run(() => this.RunDecoderLoop(hiddenStatesCopy, language, taskTranslate, useTimestamps, chunkDuration, ct));
                         if (!string.IsNullOrWhiteSpace(chunkText))
                         {
                             if (combinedResult.Length > 0)
@@ -105,10 +105,10 @@ namespace SharpAI.Runtime
                         ;
                     }
 
-                    UpdateWhisperProgress((chunkIndex + 1) / (double)totalChunks, progress);
+                    this.UpdateWhisperProgress((chunkIndex + 1) / (double)totalChunks, progress);
                 }
 
-                UpdateWhisperProgress(1, progress);
+                this.UpdateWhisperProgress(1, progress);
                 return combinedResult.ToString();
             }
             catch (Exception ex)
@@ -119,23 +119,23 @@ namespace SharpAI.Runtime
             }
             finally
             {
-                UpdateWhisperProgress(null, progress);
-                _encoderSession?.Dispose();
-                _decoderSession?.Dispose();
-                _encoderSession = null;
-                _decoderSession = null;
+                this.UpdateWhisperProgress(null, progress);
+                this._encoderSession?.Dispose();
+                this._decoderSession?.Dispose();
+                this._encoderSession = null;
+                this._decoderSession = null;
             }
         }
 
         public async IAsyncEnumerable<string> TranscribeStreamAsync(AudioObj audio, string? language = null, bool taskTranslate = false, bool useTimestamps = false, bool useOverlap = true, double chunkDuration = 20, IProgress<double>? progress = null, [EnumeratorCancellation] CancellationToken ct = default)
         {
-            if (!IsInitialized && !await InitializeAsync(CurrentModel)) yield break;
-            if (CurrentModel == null) yield break;
+            if (!this.IsInitialized && !await this.InitializeAsync(this.CurrentModel)) yield break;
+            if (this.CurrentModel == null) yield break;
 
             try
             {
                 StaticLogger.Log($"Whisper: preparing audio (sr={audio.SampleRate}, ch={audio.Channels}, samples={audio.Data.Length}).");
-                float[] pcmData = await PrepareAudioForWhisperAsync(audio);
+                float[] pcmData = await this.PrepareAudioForWhisperAsync(audio);
                 StaticLogger.Log($"Whisper: prepared PCM length={pcmData.Length}.");
 
                 if (ct.IsCancellationRequested)
@@ -147,14 +147,14 @@ namespace SharpAI.Runtime
                 // so chunkSamples is always 480000 regardless of chunkDuration.
                 // chunkDuration controls the stride (how much we advance per chunk).
                 const int chunkSamples = 480000;
-                int featureSize = GetFeatureSizeFromConfig();
+                int featureSize = this.GetFeatureSizeFromConfig();
                 int durationSamples = Math.Max(SampleRate, (int)(chunkDuration * SampleRate));
                 int effectiveChunkForStride = Math.Min(durationSamples, chunkSamples);
                 int overlapSamples = useOverlap ? Math.Min(effectiveChunkForStride / 2, SampleRate * 2) : 0;
                 int strideSamples = Math.Max(1, effectiveChunkForStride - overlapSamples);
                 int totalChunks = (int)Math.Ceiling(pcmData.Length / (double)strideSamples);
                 StaticLogger.Log($"Whisper: chunkDuration={chunkDuration}s, strideSamples={strideSamples}, totalChunks={totalChunks}.");
-                UpdateWhisperProgress(0, progress);
+                this.UpdateWhisperProgress(0, progress);
 
                 for (int chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++)
                 {
@@ -170,7 +170,7 @@ namespace SharpAI.Runtime
                     Array.Copy(pcmData, offset, chunk, 0, copyLength);
                     StaticLogger.Log($"Whisper: chunk {chunkIndex + 1}/{totalChunks}, samples={chunk.Length}, copied={copyLength}.");
 
-                    var melFeatures = ComputeMelSpectrogram(chunk, featureSize);
+                    var melFeatures = this.ComputeMelSpectrogram(chunk, featureSize);
                     StaticLogger.Log($"Whisper: mel features shape=[{string.Join(",", melFeatures.Dimensions.ToArray())}].");
 
                     if (ct.IsCancellationRequested)
@@ -183,7 +183,7 @@ namespace SharpAI.Runtime
                         NamedOnnxValue.CreateFromTensor("input_features", melFeatures)
                     };
 
-                    using var encoderResults = _encoderSession!.Run(encoderInputs);
+                    using var encoderResults = this._encoderSession!.Run(encoderInputs);
                     var hiddenStates = encoderResults.First().Value as DenseTensor<float>;
                     if (hiddenStates == null) yield break;
                     StaticLogger.Log($"Whisper: encoder hidden states shape=[{string.Join(",", hiddenStates.Dimensions.ToArray())}].");
@@ -191,7 +191,7 @@ namespace SharpAI.Runtime
                     float[] hiddenDataCopy = hiddenStates.ToArray();
                     var hiddenStatesCopy = new DenseTensor<float>(hiddenDataCopy, hiddenStates.Dimensions);
 
-                    var chunkText = await Task.Run(() => RunDecoderLoop(hiddenStatesCopy, language, taskTranslate, useTimestamps, chunkDuration, ct));
+                    var chunkText = await Task.Run(() => this.RunDecoderLoop(hiddenStatesCopy, language, taskTranslate, useTimestamps, chunkDuration, ct));
                     if (!string.IsNullOrWhiteSpace(chunkText))
                     {
                         if (chunkIndex > 0)
@@ -205,18 +205,18 @@ namespace SharpAI.Runtime
                         yield return "\n";
                     }
 
-                    UpdateWhisperProgress((chunkIndex + 1) / (double)totalChunks, progress);
+                    this.UpdateWhisperProgress((chunkIndex + 1) / (double)totalChunks, progress);
                 }
 
-                UpdateWhisperProgress(1, progress);
+                this.UpdateWhisperProgress(1, progress);
             }
             finally
             {
-                UpdateWhisperProgress(null, progress);
-                _encoderSession?.Dispose();
-                _decoderSession?.Dispose();
-                _encoderSession = null;
-                _decoderSession = null;
+                this.UpdateWhisperProgress(null, progress);
+                this._encoderSession?.Dispose();
+                this._decoderSession?.Dispose();
+                this._encoderSession = null;
+                this._decoderSession = null;
             }
         }
 
@@ -247,23 +247,23 @@ namespace SharpAI.Runtime
 
         private string RunDecoderLoop(DenseTensor<float> encoderHiddenStates, string? lang, bool translate, bool useTimestamps, double chunkDuration = 20, CancellationToken ct = default)
         {
-            EnsureTokenizerLoaded();
+            this.EnsureTokenizerLoaded();
 
             try
             {
                 // Build the SOT (start-of-transcript) prompt.
                 // Whisper multilingual models expect: <|startoftranscript|> <|lang|> <|task|> [<|notimestamps|>]
                 // The forced_decoder_ids from generation_config.json define the expected positions.
-                List<int> tokens = new List<int> { GetTokenIdOrDefault("<|startoftranscript|>", 50258) };
+                List<int> tokens = new List<int> { this.GetTokenIdOrDefault("<|startoftranscript|>", 50258) };
                 StaticLogger.Log($"Whisper: decoder start, language='{lang ?? ""}', translate={translate}, timestamps={useTimestamps}.");
 
                 // Try to read forced_decoder_ids from generation_config.json for correct defaults
-                var forcedIds = ReadForcedDecoderIds();
+                var forcedIds = this.ReadForcedDecoderIds();
 
                 // Language token — required for multilingual models at position 1
                 if (!string.IsNullOrWhiteSpace(lang))
                 {
-                    var langToken = GetTokenIdOrDefault($"<|{lang}|>", -1);
+                    var langToken = this.GetTokenIdOrDefault($"<|{lang}|>", -1);
                     if (langToken >= 0)
                     {
                         tokens.Add(langToken);
@@ -271,13 +271,13 @@ namespace SharpAI.Runtime
                     else
                     {
                         // Language string not found in vocab; try forced_decoder_ids or default to <|en|>
-                        tokens.Add(GetForcedIdAtPosition(forcedIds, 1, GetTokenIdOrDefault("<|en|>", 50259)));
+                        tokens.Add(GetForcedIdAtPosition(forcedIds, 1, this.GetTokenIdOrDefault("<|en|>", 50259)));
                     }
                 }
                 else
                 {
                     // No language specified — use forced_decoder_ids or default to <|en|>
-                    tokens.Add(GetForcedIdAtPosition(forcedIds, 1, GetTokenIdOrDefault("<|en|>", 50259)));
+                    tokens.Add(GetForcedIdAtPosition(forcedIds, 1, this.GetTokenIdOrDefault("<|en|>", 50259)));
                 }
 
                 // Task token at position 2
@@ -285,7 +285,7 @@ namespace SharpAI.Runtime
                 // models like large-v3-turbo). Fall back to forced_decoder_ids, then vocab lookup.
                 {
                     string taskName = translate ? "translate" : "transcribe";
-                    if (_configTaskToId != null && _configTaskToId.TryGetValue(taskName, out var configTaskId))
+                    if (this._configTaskToId != null && this._configTaskToId.TryGetValue(taskName, out var configTaskId))
                     {
                         tokens.Add(configTaskId);
                         StaticLogger.Log($"Whisper: using task_to_id['{taskName}']={configTaskId} for position 2.");
@@ -298,7 +298,7 @@ namespace SharpAI.Runtime
                     else
                     {
                         var taskToken = translate ? "<|translate|>" : "<|transcribe|>";
-                        var taskTokenId = GetTokenIdOrDefault(taskToken, -1);
+                        var taskTokenId = this.GetTokenIdOrDefault(taskToken, -1);
                         if (taskTokenId >= 0)
                         {
                             tokens.Add(taskTokenId);
@@ -315,8 +315,8 @@ namespace SharpAI.Runtime
                 // because models like large-v3-turbo shift this token (50364 instead of 50363).
                 if (!useTimestamps)
                 {
-                    int noTsToken = _configNoTimestampsTokenId
-                        ?? GetTokenIdOrDefault("<|notimestamps|>", 50363);
+                    int noTsToken = this._configNoTimestampsTokenId
+                        ?? this.GetTokenIdOrDefault("<|notimestamps|>", 50363);
                     tokens.Add(noTsToken);
                 }
 
@@ -328,8 +328,8 @@ namespace SharpAI.Runtime
                 }
 
                 // Read stop tokens from config
-                int eotToken = GetTokenIdOrDefault("<|endoftext|>", 50257);
-                int sotToken = GetTokenIdOrDefault("<|startoftranscript|>", 50258);
+                int eotToken = this.GetTokenIdOrDefault("<|endoftext|>", 50257);
+                int sotToken = this.GetTokenIdOrDefault("<|startoftranscript|>", 50258);
 
                 const int maxTokenCount = 448;
                 // Heuristic token budget: ~5 tokens/sec of audio is generous for speech
@@ -370,7 +370,7 @@ namespace SharpAI.Runtime
 
                     var namedInputs = new List<NamedOnnxValue>();
                     int encoderSeqLength = (int)encoderHiddenStates.Dimensions[1];
-                    foreach (var kv in _decoderSession!.InputMetadata)
+                    foreach (var kv in this._decoderSession!.InputMetadata)
                     {
                         var name = kv.Key;
                         var meta = kv.Value;
@@ -477,7 +477,7 @@ namespace SharpAI.Runtime
                         // Validate rank on first step only
                         if (i == 0)
                         {
-                            foreach (var kv2 in _decoderSession.InputMetadata)
+                            foreach (var kv2 in this._decoderSession.InputMetadata)
                             {
                                 var provided = namedInputs.FirstOrDefault(n => string.Equals(n.Name, kv2.Key, StringComparison.Ordinal));
                                 if (provided == null) { StaticLogger.Log($"Whisper: missing input '{kv2.Key}'."); continue; }
@@ -501,7 +501,7 @@ namespace SharpAI.Runtime
                             }
                         }
 
-                        using var decoderResults = _decoderSession.Run(namedInputs);
+                        using var decoderResults = this._decoderSession.Run(namedInputs);
 
                         // Find logits output
                         var logitsResult = decoderResults.FirstOrDefault(r =>
@@ -514,7 +514,7 @@ namespace SharpAI.Runtime
                         int genCountBefore = tokens.Count - promptTokenCount;
                         int minTokens = Math.Min(60, Math.Max(10, (int)(chunkDuration * 2)));
                         int? bannedToken = (genCountBefore < minTokens) ? eotToken : null;
-                        int nextToken = GetNextTokenGreedy(logits, bannedToken);
+                        int nextToken = this.GetNextTokenGreedy(logits, bannedToken);
                         if (bannedToken.HasValue && nextToken != eotToken)
                         {
                             StaticLogger.Log($"Whisper: suppressed early EOT at step {i} (minTokens={minTokens}).");
@@ -523,7 +523,7 @@ namespace SharpAI.Runtime
                         // Log first tokens and stop tokens
                         if (i < 5 || nextToken == eotToken)
                         {
-                            string tokenName = (_tokenIdToString != null && _tokenIdToString.TryGetValue(nextToken, out var tn)) ? tn : "?";
+                            string tokenName = (this._tokenIdToString != null && this._tokenIdToString.TryGetValue(nextToken, out var tn)) ? tn : "?";
                             StaticLogger.Log($"Whisper: step {i}, nextToken={nextToken} ('{tokenName}').");
                         }
 
@@ -618,8 +618,46 @@ namespace SharpAI.Runtime
                 }
 
                 StaticLogger.Log($"Whisper: decoder produced {tokens.Count} tokens total.");
-                var decoded = DecodeTokens(tokens);
+                var decoded = this.DecodeTokens(tokens);
                 StaticLogger.Log($"Whisper: decoded text length={decoded.Length}.");
+
+                // Fallback: wenn die Byte-Level-Decodierung leer zurückgibt, versuche eine einfache Rückfallergebnis-Konstruktion
+                if (string.IsNullOrWhiteSpace(decoded))
+                {
+                    try
+                    {
+                        var fb = new StringBuilder();
+                        foreach (var t in tokens.Skip(promptTokenCount))
+                        {
+                            if (this._tokenIdToString != null && this._tokenIdToString.TryGetValue(t, out var piece))
+                            {
+                                // Skip special tokens
+                                if (piece.StartsWith("<|", StringComparison.Ordinal) && piece.EndsWith("|>", StringComparison.Ordinal))
+                                    continue;
+                                fb.Append(piece);
+                            }
+                            else
+                            {
+                                // If no mapping, append numeric token for debugging
+                                fb.Append($"[{t}]");
+                            }
+                        }
+
+                        var fallback = fb.ToString();
+                        if (!string.IsNullOrWhiteSpace(fallback))
+                        {
+                            StaticLogger.Log("Whisper: decoded text was empty — returning fallback constructed from token strings.");
+                            StaticLogger.Log($"Whisper: fallback length={fallback.Length}.");
+                            return fallback;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StaticLogger.Log("Whisper: failed to build fallback decoded text.");
+                        StaticLogger.Log(ex);
+                    }
+                }
+
                 return decoded;
             }
             catch (Exception ex)
@@ -628,9 +666,9 @@ namespace SharpAI.Runtime
                 StaticLogger.Log(ex);
 
                 // Clear inference-related state to free RAM; only reload the model as a last resort
-                _tokenIdToString = null;
-                _tokenStringToId = null;
-                _byteDecoder = null;
+                this._tokenIdToString = null;
+                this._tokenStringToId = null;
+                this._byteDecoder = null;
 
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
@@ -671,14 +709,14 @@ namespace SharpAI.Runtime
         private Dictionary<int, int> ReadForcedDecoderIds()
         {
             var result = new Dictionary<int, int>();
-            if (CurrentModel == null || string.IsNullOrWhiteSpace(CurrentModel.GenerationConfigPath) || !File.Exists(CurrentModel.GenerationConfigPath))
+            if (this.CurrentModel == null || string.IsNullOrWhiteSpace(this.CurrentModel.GenerationConfigPath) || !File.Exists(this.CurrentModel.GenerationConfigPath))
             {
                 return result;
             }
 
             try
             {
-                using var stream = File.OpenRead(CurrentModel.GenerationConfigPath);
+                using var stream = File.OpenRead(this.CurrentModel.GenerationConfigPath);
                 using var doc = JsonDocument.Parse(stream);
 
                 if (doc.RootElement.TryGetProperty("forced_decoder_ids", out var forcedElement) &&
@@ -703,31 +741,31 @@ namespace SharpAI.Runtime
                 if (doc.RootElement.TryGetProperty("no_timestamps_token_id", out var noTsElement) &&
                     noTsElement.TryGetInt32(out var noTsId))
                 {
-                    _configNoTimestampsTokenId = noTsId;
+                    this._configNoTimestampsTokenId = noTsId;
                     StaticLogger.Log($"Whisper: no_timestamps_token_id={noTsId} from generation_config.json.");
                 }
                 else
                 {
-                    _configNoTimestampsTokenId = null;
+                    this._configNoTimestampsTokenId = null;
                 }
 
                 // Read task_to_id for correct translate/transcribe token mapping
                 if (doc.RootElement.TryGetProperty("task_to_id", out var taskElement) &&
                     taskElement.ValueKind == JsonValueKind.Object)
                 {
-                    _configTaskToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                    this._configTaskToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
                     foreach (var prop in taskElement.EnumerateObject())
                     {
                         if (prop.Value.TryGetInt32(out var tid))
                         {
-                            _configTaskToId[prop.Name] = tid;
+                            this._configTaskToId[prop.Name] = tid;
                         }
                     }
-                    StaticLogger.Log($"Whisper: task_to_id=[{string.Join(", ", _configTaskToId.Select(kv => $"{kv.Key}:{kv.Value}"))}].");
+                    StaticLogger.Log($"Whisper: task_to_id=[{string.Join(", ", this._configTaskToId.Select(kv => $"{kv.Key}:{kv.Value}"))}].");
                 }
                 else
                 {
-                    _configTaskToId = null;
+                    this._configTaskToId = null;
                 }
 
                 if (result.Count > 0)
@@ -755,14 +793,14 @@ namespace SharpAI.Runtime
         private int GetFeatureSizeFromConfig()
         {
             const int defaultSize = 80;
-            if (CurrentModel == null || string.IsNullOrWhiteSpace(CurrentModel.PreprocessorConfigPath) || !File.Exists(CurrentModel.PreprocessorConfigPath))
+            if (this.CurrentModel == null || string.IsNullOrWhiteSpace(this.CurrentModel.PreprocessorConfigPath) || !File.Exists(this.CurrentModel.PreprocessorConfigPath))
             {
                 return defaultSize;
             }
 
             try
             {
-                using var stream = File.OpenRead(CurrentModel.PreprocessorConfigPath);
+                using var stream = File.OpenRead(this.CurrentModel.PreprocessorConfigPath);
                 using var doc = JsonDocument.Parse(stream);
 
                 if (doc.RootElement.TryGetProperty("n_mels", out var nMelsElement) && nMelsElement.TryGetInt32(out var nMels))
@@ -795,24 +833,24 @@ namespace SharpAI.Runtime
         private const int FFTSize = 400;
         private const int HopLength = 160;
         private int ChunkLength = 30; // Sekunden
-        private int MaxFrames => (SampleRate * ChunkLength) / HopLength;
+        private int MaxFrames => (SampleRate * this.ChunkLength) / HopLength;
 
         private DenseTensor<float> ComputeMelSpectrogram(float[] pcm, int nMels)
         {
             // 1. Erstelle die Mel-Filterbank (falls nicht gecached)
-            float[][] filters = GetMelFilters(nMels);
+            float[][] filters = this.GetMelFilters(nMels);
 
             // 2. STFT Vorbereitung
             // Whisper nutzt "Reflect Padding" am Anfang und Ende
-            float[] paddedPcm = PadAudio(pcm, FFTSize / 2);
+            float[] paddedPcm = this.PadAudio(pcm, FFTSize / 2);
 
-            var melSpectrogram = new float[nMels * MaxFrames];
+            var melSpectrogram = new float[nMels * this.MaxFrames];
             float[] window = Enumerable.Range(0, FFTSize)
                 .Select(i => 0.5f * (1 - (float)Math.Cos(2 * Math.PI * i / FFTSize)))
                 .ToArray(); // Hanning Window
 
             // 3. STFT Loop
-            for (int frame = 0; frame < MaxFrames; frame++)
+            for (int frame = 0; frame < this.MaxFrames; frame++)
             {
                 int start = frame * HopLength;
                 float[] fftBuffer = new float[FFTSize];
@@ -853,7 +891,7 @@ namespace SharpAI.Runtime
                     melValue = Math.Max(melValue, 1e-10f);
                     melValue = (float)Math.Log10(melValue);
 
-                    melSpectrogram[melBin * MaxFrames + frame] = melValue;
+                    melSpectrogram[melBin * this.MaxFrames + frame] = melValue;
                 }
             }
 
@@ -864,14 +902,14 @@ namespace SharpAI.Runtime
             StaticLogger.Log($"Whisper: mel stats BEFORE norm: min={melMin:F2}, max={melMax:F2}, avg={melAvg:F2}.");
 
             // 6. Normalisierung (Whisper: clamp to max-8, then (x+4)/4)
-            NormalizeMel(melSpectrogram, nMels);
+            this.NormalizeMel(melSpectrogram, nMels);
 
             float nMax = melSpectrogram.Max();
             float nMin = melSpectrogram.Min();
             float nAvg = melSpectrogram.Average();
             StaticLogger.Log($"Whisper: mel stats AFTER norm: min={nMin:F2}, max={nMax:F2}, avg={nAvg:F2}.");
 
-            return new DenseTensor<float>(melSpectrogram, new[] { 1, nMels, MaxFrames });
+            return new DenseTensor<float>(melSpectrogram, new[] { 1, nMels, this.MaxFrames });
         }
 
         private float[] PadAudio(float[] pcm, int pad)
@@ -904,37 +942,37 @@ namespace SharpAI.Runtime
         private float[][] GetMelFilters(int nMels)
         {
             // Return cached filters if already loaded for this nMels
-            if (_cachedMelFilters != null && _cachedMelFilterNMels == nMels)
-                return _cachedMelFilters;
+            if (this._cachedMelFilters != null && this._cachedMelFilterNMels == nMels)
+                return this._cachedMelFilters;
 
             // 1. Try to load pre-computed mel filters from preprocessor_config.json
             //    Whisper models are trained with specific mel filterbanks (librosa Slaney scale).
             //    Using the model's own filters is critical for correct output.
-            float[][]? loaded = TryLoadMelFiltersFromConfig(nMels);
+            float[][]? loaded = this.TryLoadMelFiltersFromConfig(nMels);
             if (loaded != null)
             {
                 StaticLogger.Log($"Whisper: loaded {loaded.Length}x{loaded[0].Length} mel filters from preprocessor_config.json.");
-                _cachedMelFilters = loaded;
-                _cachedMelFilterNMels = nMels;
+                this._cachedMelFilters = loaded;
+                this._cachedMelFilterNMels = nMels;
                 return loaded;
             }
 
             // 2. Fallback: compute mel filterbank using Slaney scale (matches librosa default)
             StaticLogger.Log($"Whisper: computing {nMels} mel filters (Slaney scale, fallback).");
-            float[][] filters = ComputeMelFiltersSlaney(nMels);
-            _cachedMelFilters = filters;
-            _cachedMelFilterNMels = nMels;
+            float[][] filters = this.ComputeMelFiltersSlaney(nMels);
+            this._cachedMelFilters = filters;
+            this._cachedMelFilterNMels = nMels;
             return filters;
         }
 
         private float[][]? TryLoadMelFiltersFromConfig(int nMels)
         {
-            if (CurrentModel == null || string.IsNullOrWhiteSpace(CurrentModel.PreprocessorConfigPath) || !File.Exists(CurrentModel.PreprocessorConfigPath))
+            if (this.CurrentModel == null || string.IsNullOrWhiteSpace(this.CurrentModel.PreprocessorConfigPath) || !File.Exists(this.CurrentModel.PreprocessorConfigPath))
                 return null;
 
             try
             {
-                using var stream = File.OpenRead(CurrentModel.PreprocessorConfigPath);
+                using var stream = File.OpenRead(this.CurrentModel.PreprocessorConfigPath);
                 using var doc = JsonDocument.Parse(stream);
 
                 if (!doc.RootElement.TryGetProperty("mel_filters", out var melFiltersElement) ||
@@ -1071,7 +1109,7 @@ namespace SharpAI.Runtime
 
         private void UpdateWhisperProgress(double? value, IProgress<double>? progress)
         {
-            CurrentWhisperProgress = value;
+            this.CurrentWhisperProgress = value;
             if (value.HasValue)
             {
                 progress?.Report(value.Value);
@@ -1084,28 +1122,70 @@ namespace SharpAI.Runtime
 
         private void EnsureTokenizerLoaded()
         {
-            if (_tokenIdToString != null && _tokenStringToId != null && _byteDecoder != null)
+            if (this._tokenIdToString != null && this._tokenStringToId != null && this._byteDecoder != null)
             {
                 return;
             }
 
-            if (CurrentModel == null || string.IsNullOrWhiteSpace(CurrentModel.TokenizerPath) || !File.Exists(CurrentModel.TokenizerPath))
+            if (this.CurrentModel == null || string.IsNullOrWhiteSpace(this.CurrentModel.TokenizerPath) || !File.Exists(this.CurrentModel.TokenizerPath))
             {
-                _tokenIdToString = new Dictionary<int, string>();
-                _tokenStringToId = new Dictionary<string, int>(StringComparer.Ordinal);
-                _byteDecoder = BuildByteDecoder();
+                this._tokenIdToString = new Dictionary<int, string>();
+                this._tokenStringToId = new Dictionary<string, int>(StringComparer.Ordinal);
+                this._byteDecoder = BuildByteDecoder();
                 return;
             }
 
-            using var stream = File.OpenRead(CurrentModel.TokenizerPath);
+            using var stream = File.OpenRead(this.CurrentModel.TokenizerPath);
             using var doc = JsonDocument.Parse(stream);
 
             var vocab = new Dictionary<int, string>();
             var vocabInverse = new Dictionary<string, int>(StringComparer.Ordinal);
+
+            // Support multiple tokenizer formats used by different models/providers
+            // 1) { "model": { "vocab": { "token": id, ... } } }
             if (doc.RootElement.TryGetProperty("model", out var modelElement) &&
-                modelElement.TryGetProperty("vocab", out var vocabElement))
+                modelElement.ValueKind == JsonValueKind.Object &&
+                modelElement.TryGetProperty("vocab", out var modelVocab) && modelVocab.ValueKind == JsonValueKind.Object)
             {
-                foreach (var prop in vocabElement.EnumerateObject())
+                foreach (var prop in modelVocab.EnumerateObject())
+                {
+                    if (prop.Value.TryGetInt32(out var id))
+                    {
+                        vocab[id] = prop.Name;
+                        vocabInverse[prop.Name] = id;
+                    }
+                }
+            }
+            // 2) { "vocab": { "token": id, ... } }  OR { "vocab": { "id": "token", ... } }
+            else if (doc.RootElement.TryGetProperty("vocab", out var rootVocab) && rootVocab.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var prop in rootVocab.EnumerateObject())
+                {
+                    // value is int -> token -> id
+                    if (prop.Value.TryGetInt32(out var idVal))
+                    {
+                        vocab[idVal] = prop.Name;
+                        vocabInverse[prop.Name] = idVal;
+                    }
+                    else if (prop.Value.ValueKind == JsonValueKind.String)
+                    {
+                        // maybe prop.Name is id string
+                        if (int.TryParse(prop.Name, out var idKey))
+                        {
+                            var tokenStr = prop.Value.GetString();
+                            if (!string.IsNullOrEmpty(tokenStr))
+                            {
+                                vocab[idKey] = tokenStr;
+                                vocabInverse[tokenStr] = idKey;
+                            }
+                        }
+                    }
+                }
+            }
+            // 3) token_to_id style
+            else if (doc.RootElement.TryGetProperty("token_to_id", out var tokenToId) && tokenToId.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var prop in tokenToId.EnumerateObject())
                 {
                     if (prop.Value.TryGetInt32(out var id))
                     {
@@ -1115,39 +1195,53 @@ namespace SharpAI.Runtime
                 }
             }
 
-            // Also read added_tokens (special tokens like <|startoftranscript|>, <|translate|>, etc.)
-            if (doc.RootElement.TryGetProperty("added_tokens", out var addedTokensElement) &&
-                addedTokensElement.ValueKind == JsonValueKind.Array)
+            // added_tokens may be array or object; support both
+            if (doc.RootElement.TryGetProperty("added_tokens", out var addedTokensElement))
             {
-                foreach (var tokenEntry in addedTokensElement.EnumerateArray())
+                if (addedTokensElement.ValueKind == JsonValueKind.Array)
                 {
-                    if (tokenEntry.TryGetProperty("id", out var idElement) &&
-                        idElement.TryGetInt32(out var tokenId) &&
-                        tokenEntry.TryGetProperty("content", out var contentElement))
+                    foreach (var tokenEntry in addedTokensElement.EnumerateArray())
                     {
-                        var content = contentElement.GetString();
-                        if (!string.IsNullOrEmpty(content))
+                        if (tokenEntry.ValueKind == JsonValueKind.Object &&
+                            tokenEntry.TryGetProperty("id", out var idElement) &&
+                            idElement.TryGetInt32(out var tokenId) &&
+                            tokenEntry.TryGetProperty("content", out var contentElement))
                         {
-                            vocab[tokenId] = content;
-                            vocabInverse[content] = tokenId;
+                            var content = contentElement.GetString();
+                            if (!string.IsNullOrEmpty(content))
+                            {
+                                vocab[tokenId] = content;
+                                vocabInverse[content] = tokenId;
+                            }
+                        }
+                    }
+                }
+                else if (addedTokensElement.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var prop in addedTokensElement.EnumerateObject())
+                    {
+                        if (prop.Value.TryGetInt32(out var id))
+                        {
+                            vocab[id] = prop.Name;
+                            vocabInverse[prop.Name] = id;
                         }
                     }
                 }
             }
 
-            _tokenIdToString = vocab;
-            _tokenStringToId = vocabInverse;
-            _byteDecoder = BuildByteDecoder();
+            this._tokenIdToString = vocab;
+            this._tokenStringToId = vocabInverse;
+            this._byteDecoder = BuildByteDecoder();
         }
 
         private int GetTokenIdOrDefault(string token, int fallback)
         {
-            if (_tokenStringToId == null)
+            if (this._tokenStringToId == null)
             {
                 return fallback;
             }
 
-            if (_tokenStringToId.TryGetValue(token, out var id))
+            if (this._tokenStringToId.TryGetValue(token, out var id))
             {
                 return id;
             }
@@ -1157,7 +1251,7 @@ namespace SharpAI.Runtime
 
         private string DecodeTokens(IEnumerable<int> tokens)
         {
-            if (_tokenIdToString == null || _byteDecoder == null)
+            if (this._tokenIdToString == null || this._byteDecoder == null)
             {
                 return string.Empty;
             }
@@ -1165,7 +1259,7 @@ namespace SharpAI.Runtime
             var sb = new StringBuilder();
             foreach (var token in tokens)
             {
-                if (_tokenIdToString.TryGetValue(token, out var piece))
+                if (this._tokenIdToString.TryGetValue(token, out var piece))
                 {
                     if (piece.StartsWith("<|", StringComparison.Ordinal) && piece.EndsWith("|>", StringComparison.Ordinal))
                     {
@@ -1175,12 +1269,12 @@ namespace SharpAI.Runtime
                 }
             }
 
-            return DecodeByteLevel(sb.ToString());
+            return this.DecodeByteLevel(sb.ToString());
         }
 
         private string DecodeByteLevel(string text)
         {
-            if (_byteDecoder == null)
+            if (this._byteDecoder == null)
             {
                 return text;
             }
@@ -1188,7 +1282,7 @@ namespace SharpAI.Runtime
             var bytes = new List<byte>(text.Length);
             foreach (var ch in text)
             {
-                if (_byteDecoder.TryGetValue(ch, out var b))
+                if (this._byteDecoder.TryGetValue(ch, out var b))
                 {
                     bytes.Add(b);
                 }

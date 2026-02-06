@@ -8,8 +8,11 @@ namespace SharpAI.Shared
     {
         public string FilePath { get; set; } = string.Empty;
         public string ModelName { get; set; } = string.Empty;
+        public string ModelDescriptor=> $"{this.ModelName} ({this.FileSizeMb} MB {(File.Exists(this.MMProjFilePath) ? " (+ MMPROJ)" : "")}, modified {this.LastModified:yyyy-MM-dd})";
         public double FileSizeMb { get; set; }
         public DateTime LastModified { get; set; }
+        // Optional path to an associated mmproj projector file (may also have .gguf extension)
+        public string? MMProjFilePath { get; set; }
 
         public LlamaModelFile(string filePath = "")
         {
@@ -24,6 +27,7 @@ namespace SharpAI.Shared
     public class LlamaModelLoadRequest
     {
         public LlamaModelFile ModelFile { get; set; }
+        public string? MMProjPath { get; set; }
         public int ContextSize { get; set; }
         public LlamaBackend Backend { get; set; } = LlamaBackend.CPU;
 

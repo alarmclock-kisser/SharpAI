@@ -44,11 +44,11 @@ namespace SharpAI.Core
 
         public AudioObj(float[] data, int sampleRate, int channels, int bitDepth, string name = "")
         {
-            Data = data;
-            SampleRate = sampleRate;
-            Channels = channels;
-            BitDepth = bitDepth;
-            Name = name;
+            this.Data = data;
+            this.SampleRate = sampleRate;
+            this.Channels = channels;
+            this.BitDepth = bitDepth;
+            this.Name = name;
         }
 
 

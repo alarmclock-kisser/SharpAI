@@ -68,7 +68,12 @@ public sealed class ModelViewModel
             this.DefaultTemperature = (float)(appsettings?.Temperature ?? this.DefaultTemperature);
             this.MaxTokens = appsettings?.MaxResponseTokens ?? this.MaxTokens;
             this.SelectedModelPath = string.IsNullOrWhiteSpace(appsettings?.DefaultLlamaModel) ? this.Models.FirstOrDefault()?.FilePath : this.Models.FirstOrDefault(m => m.FilePath.Contains(appsettings.DefaultLlamaModel, StringComparison.OrdinalIgnoreCase))?.FilePath;
-            
+            if (appsettings?.AutoLoadLlama == true)
+            {
+                var request = new LlamaModelLoadRequest(this.Models.First(m => string.Equals(m.FilePath, this.SelectedModelPath, StringComparison.OrdinalIgnoreCase)), this.ContextSize, this.Backend);
+                await this.api.LoadModelAsync(request);
+            }
+
             this.FirstRender = false;
         }
     }

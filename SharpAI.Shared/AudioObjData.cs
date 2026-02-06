@@ -14,17 +14,17 @@ namespace SharpAI.Shared
         public double DurationInSeconds { get; set; }
 
         public string Data { get; set; } = string.Empty;
-        public int Length => Data.Length;
+        public int Length => this.Data.Length;
 
 
         public AudioObjData(Guid id, int sampleRate, int channels, int bitDepth, TimeSpan durationTimeSpan, string serializedData)
         {
-            Id = id;
-            SampleRate = sampleRate;
-            Channels = channels;
-            BitDepth = bitDepth;
-            DurationInSeconds = durationTimeSpan.TotalSeconds;
-            Data = serializedData;
+            this.Id = id;
+            this.SampleRate = sampleRate;
+            this.Channels = channels;
+            this.BitDepth = bitDepth;
+            this.DurationInSeconds = durationTimeSpan.TotalSeconds;
+            this.Data = serializedData;
         }
 
 
