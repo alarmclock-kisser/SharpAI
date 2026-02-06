@@ -10,6 +10,7 @@ namespace SharpAI.Api
             // Read appsettings configuration as Appsettings DTO
             var appsettingsSection = builder.Configuration.GetSection("Appsettings");
             var appsettings = appsettingsSection.Get<SharpAI.Shared.Appsettings>() ?? new SharpAI.Shared.Appsettings();
+            bool autoLoadLlama = builder.Configuration.GetValue<bool>("AutoLoadLlama");
 
             // CORS policy
             const string CorsPolicy = "AllowApi";
@@ -27,10 +28,11 @@ namespace SharpAI.Api
 
             // Add services to the container.
             builder.Services.AddSingleton(appsettings);
-            builder.Services.AddSingleton<SharpAI.Runtime.LlamaService>(sp => new Runtime.LlamaService(appsettings.LlamaModelDirectories.ToArray(), appsettings.DefaultLlamaModel, appsettings.PreferredLlamaBackend, appsettings.MaxContextTokens, appsettings.DefaultContext, appsettings.SystemPrompt));
+            builder.Services.AddSingleton<SharpAI.Runtime.LlamaService>(sp => new Runtime.LlamaService(appsettings.LlamaModelDirectories.ToArray(), autoLoadLlama ? appsettings?.DefaultLlamaModel : null, appsettings.PreferredLlamaBackend, appsettings.MaxContextTokens, appsettings.DefaultContext, appsettings.SystemPrompt));
             builder.Services.AddSingleton<SharpAI.Runtime.OnnxService>(sp => new Runtime.OnnxService(appsettings.WhisperModelDirectories.ToArray()));
             builder.Services.AddSingleton < SharpAI.Core.ImageCollection>(sp => new SharpAI.Core.ImageCollection(false, appsettings.RessourceImagePaths.ToArray()));
             builder.Services.AddSingleton<SharpAI.Core.AudioHandling>(sp => new SharpAI.Core.AudioHandling(appsettings.CustomAudioExportDirectory, appsettings.RessourceAudioPaths.ToArray()));
+            builder.Services.AddSingleton<SharpAI.Core.LmStudioService>();
 
             builder.Services.AddControllers();
             builder.Services.AddSignalR();

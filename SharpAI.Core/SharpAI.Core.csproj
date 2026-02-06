@@ -13,4 +13,8 @@
     <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="2.1.7" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\SharpAI.Shared\SharpAI.Shared.csproj" />
+  </ItemGroup>
+
 </Project>
