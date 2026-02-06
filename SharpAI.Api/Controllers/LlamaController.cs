@@ -11,11 +11,13 @@ namespace SharpAI.Api.Controllers
     {
         private readonly LlamaService Llama;
         private readonly ImageCollection Images;
+        private readonly AudioHandling Audio;
 
-        public LlamaController(LlamaService llamaService, ImageCollection images)
+        public LlamaController(LlamaService llamaService, ImageCollection imageCollection, AudioHandling audioHandling)
         {
             this.Llama = llamaService;
-            this.Images = images;
+            this.Images = imageCollection;
+            this.Audio = audioHandling;
         }
 
 
@@ -33,6 +35,33 @@ namespace SharpAI.Api.Controllers
             catch (Exception ex)
             {
                 return this.StatusCode(500, $"Error retrieving Llama status: {ex.Message}");
+            }
+        }
+
+        [HttpGet("systemprompt/get")]
+        public ActionResult<string?> GetSystemPrompt()
+        {
+            try
+            {
+                return this.Ok(this.Llama.SystemPrompt);
+            }
+            catch (Exception ex)
+            {
+                return this.StatusCode(500, $"Error retrieving system prompt: {ex.Message}");
+            }
+        }
+
+        [HttpPost("systemprompt/set")]
+        public async Task<ActionResult<string?>> SetSystemPromptAsync([FromBody] string? systemPrompt, [FromQuery] bool updateCurrentContext = true)
+        {
+            try
+            {
+                await this.Llama.SetSystemPromptAsync(systemPrompt, updateCurrentContext);
+                return this.Ok(this.Llama.SystemPrompt);
+            }
+            catch (Exception ex)
+            {
+                return this.StatusCode(500, $"Error setting system prompt: {ex.Message}");
             }
         }
 
@@ -138,11 +167,16 @@ namespace SharpAI.Api.Controllers
 
         // Contexts
         [HttpGet("context/list")]
-        public async Task<ActionResult<List<LlamaContextData>>?> GetContextsList()
+        public async Task<ActionResult<List<LlamaContextData>>?> GetContextsList([FromQuery] bool sortedByLatest = true)
         {
             try
             {
                 var contexts = await this.Llama.GetAllContextsAsync();
+                if (sortedByLatest)
+                {
+                    contexts = contexts?.OrderByDescending(c => c.LatestActivityDate).ToList();
+                }
+
                 return this.Ok(contexts);
             }
             catch (Exception ex)
@@ -216,6 +250,20 @@ namespace SharpAI.Api.Controllers
             }
         }
 
+        [HttpPost("context/rename")]
+        public async Task<ActionResult<string?>> RenameContextAsync([FromQuery] string? contextNameOrPath = null, [FromQuery] string? newName = null)
+        {
+            try
+            {
+                var newPath = await this.Llama.RenameContextAsync(contextNameOrPath, newName);
+                return this.Ok(newPath);
+            }
+            catch (Exception ex)
+            {
+                return this.StatusCode(500, $"Error renaming context: {ex.Message}");
+            }
+        }
+
         [HttpDelete("context/delete")]
         public async Task<ActionResult<bool?>> DeleteContextAsync([FromQuery] string? contextNameOrPath = null)
         {
@@ -253,7 +301,7 @@ namespace SharpAI.Api.Controllers
         }
 
         [HttpPost("generate/simple")]
-        public async Task<ActionResult<IAsyncEnumerable<string>?>> GenerateSimpleAsync([FromQuery] string prompt, [FromQuery] int maxTokens = 1024, [FromQuery] float temperature = 0.7f, [FromQuery] float topP = 0.95f, CancellationToken ct = default)
+        public async Task<ActionResult<IAsyncEnumerable<string>?>> GenerateSimpleAsync([FromQuery] string prompt, [FromQuery] int maxTokens = 1024, [FromQuery] float temperature = 0.7f, [FromQuery] float topP = 0.95f, [FromQuery] bool useSystemPrompt = true, CancellationToken ct = default)
         {
             try
             {
@@ -263,7 +311,8 @@ namespace SharpAI.Api.Controllers
                     MaxTokens = maxTokens,
                     Temperature = temperature,
                     TopP = topP,
-                    Stream = true
+                    Stream = true,
+                    UseSystemPrompt = useSystemPrompt,
                 };
 
                 var stream = this.Llama.GenerateAsync(request, ct);
@@ -300,7 +349,7 @@ namespace SharpAI.Api.Controllers
         }
 
         [HttpPost("generate/text/simple")]
-        public async Task<ActionResult<string?>> GenerateTextSimpleAsync([FromQuery] string prompt, [FromQuery] int maxTokens = 1024, [FromQuery] float temperature = 0.7f, [FromQuery] float topP = 0.95f, CancellationToken ct = default)
+        public async Task<ActionResult<string?>> GenerateTextSimpleAsync([FromQuery] string prompt, [FromQuery] int maxTokens = 1024, [FromQuery] float temperature = 0.7f, [FromQuery] float topP = 0.95f, [FromQuery] bool useSystemPrompt = true, CancellationToken ct = default)
         {
             try
             {
@@ -310,7 +359,8 @@ namespace SharpAI.Api.Controllers
                     MaxTokens = maxTokens,
                     Temperature = temperature,
                     TopP = topP,
-                    Stream = false
+                    Stream = false,
+                    UseSystemPrompt = useSystemPrompt,
                 };
 
                 var text = await this.Llama.GenerateTextAsync(request, ct);
@@ -382,7 +432,7 @@ namespace SharpAI.Api.Controllers
         [Produces("text/event-stream")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GenerateStreamSimpleAsync([FromQuery] string prompt, [FromQuery] int maxTokens = 1024, [FromQuery] float temperature = 0.7f, [FromQuery] float topP = 0.95f, CancellationToken ct = default)
+        public async Task<IActionResult> GenerateStreamSimpleAsync([FromQuery] string prompt, [FromQuery] int maxTokens = 1024, [FromQuery] float temperature = 0.7f, [FromQuery] float topP = 0.95f, [FromQuery] bool useSystemPrompt = true, CancellationToken ct = default)
         {
             var request = new LlamaGenerationRequest
             {
@@ -390,7 +440,8 @@ namespace SharpAI.Api.Controllers
                 MaxTokens = maxTokens,
                 Temperature = temperature,
                 TopP = topP,
-                Stream = true
+                Stream = true,  
+                UseSystemPrompt = useSystemPrompt,
             };
 
             var stream = this.Llama.GenerateAsync(request, ct);

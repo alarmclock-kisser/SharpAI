@@ -43,14 +43,38 @@ namespace SharpAI.Core
 
 
 
-        public ImageCollection(bool loadEmbeddedResources = false)
+        public ImageCollection(bool loadEmbeddedResources = false, string[]? additionalRessourcePaths = null)
 		{
 			if (loadEmbeddedResources)
 			{
 				// Force enumeration so resources are loaded into the collection
 				_ = this.LoadResourcesImages().ToList();
 			}
-		}
+
+			if (additionalRessourcePaths != null)
+			{
+                // Load additional resource images from specified file paths or directory get all images from directory
+				foreach (var path in additionalRessourcePaths)
+				{
+					if (System.IO.Directory.Exists(path))
+					{
+						var files = System.IO.Directory.GetFiles(path, "*.*", System.IO.SearchOption.AllDirectories)
+							.Where(file => file.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+										   file.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                                           file.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+										   file.EndsWith(".bmp", StringComparison.OrdinalIgnoreCase));
+						foreach (var file in files)
+						{
+							this.ImportImage(file);
+						}
+					}
+					else if (System.IO.File.Exists(path))
+					{
+						this.ImportImage(path);
+					}
+                }
+            }
+        }
 
 
 

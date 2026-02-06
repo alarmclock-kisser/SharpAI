@@ -1,3 +1,5 @@
+using Markdig;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using SharpAI.Client;
@@ -12,6 +14,12 @@ public sealed class ChatViewModel
     private readonly IJSRuntime js;
     private ElementReference messageContainer;
     private CancellationTokenSource? generationCts;
+    private bool scrollPending;
+    private static readonly MarkdownPipeline MarkdownPipeline = new MarkdownPipelineBuilder()
+        .UseAdvancedExtensions()
+        .UseSoftlineBreakAsHardlineBreak()
+        .Build();
+    // basic sanitizer: removes dangerous tags and attributes (not a full HTML sanitizer)
 
     public ChatViewModel(ApiClient api, IJSRuntime js)
     {
@@ -26,6 +34,7 @@ public sealed class ChatViewModel
     public float TopP { get; set; } = 0.95f;
     public bool StreamResponse { get; set; } = true;
     public bool Isolated { get; set; }
+    public bool UseSystemPrompt { get; set; } = true;
     public bool IsGenerating { get; private set; }
     public bool? IsModelLoaded { get; private set; }
     public string? LoadedModelName { get; private set; }
@@ -34,6 +43,9 @@ public sealed class ChatViewModel
     public bool ShowImages { get; private set; }
     public List<ImageSelection> ImageSelections { get; } = new();
     public Func<Task>? NotifyStateChanged { get; set; }
+
+    private bool FirstRender { get; set; } = true;
+
 
     public Task InitializeAsync() => this.RefreshAsync();
 
@@ -44,6 +56,22 @@ public sealed class ChatViewModel
 
     public async Task RefreshAsync()
     {
+        if (this.FirstRender)
+        {
+            var appsettings = await this.api.GetAppsettingsAsync();
+            this.MaxTokens = appsettings?.MaxResponseTokens ?? this.MaxTokens;
+            this.Temperature = (float)(appsettings?.Temperature ?? this.Temperature);
+            this.TopP = (float)(appsettings?.TopP ?? this.TopP);
+            this.UseSystemPrompt = !string.IsNullOrEmpty(appsettings?.SystemPrompt);
+
+            if (!string.IsNullOrEmpty(appsettings?.DefaultContext))
+            {
+                await this.api.LoadContextAsync(appsettings.DefaultContext);
+            }
+
+            this.FirstRender = false;
+        }
+
         this.LoadedModelName = (await this.api.GetModelStatusAsync())?.ModelName;
         this.IsModelLoaded = this.LoadedModelName != null;
         var context = await this.api.GetCurrentContextAsync();
@@ -55,15 +83,15 @@ public sealed class ChatViewModel
                 this.Messages.Add(new ChatMessageView
                 {
                     Role = message.Role,
-                    Content = message.Content,
+                    Content = NormalizeFormatting(message.Content),
                     Timestamp = message.Timestamp,
                     Stats = message.Stats
                 });
             }
         }
 
-        this.ContextLabel = string.IsNullOrWhiteSpace(context?.FilePath) ? "Temporary" : "Loaded";
-        await this.ScrollToBottomAsync();
+        this.ContextLabel = string.IsNullOrWhiteSpace(context?.FilePath) ? "Temporary" : "Loaded: '" + Path.GetFileNameWithoutExtension(context.FilePath) + "'";
+        this.scrollPending = true;
     }
 
     public async Task ToggleImagesAsync()
@@ -128,7 +156,9 @@ public sealed class ChatViewModel
             MaxTokens = this.MaxTokens,
             Temperature = this.Temperature,
             TopP = this.TopP,
-            Stream = this.StreamResponse
+            Stream = this.StreamResponse,
+            UseSystemPrompt = this.UseSystemPrompt,
+            Isolated = this.Isolated
         };
 
         var selectedImages = this.ImageSelections.Where(item => item.IsSelected).ToList();
@@ -164,8 +194,7 @@ public sealed class ChatViewModel
                         continue;
                     }
 
-                    var formattedChunk = chunk.Replace("\\n", "\n");
-                    assistantMessage.Content += formattedChunk;
+                    assistantMessage.Content += NormalizeFormatting(chunk);
                     if (this.NotifyStateChanged != null)
                     {
                         await this.NotifyStateChanged();
@@ -179,7 +208,7 @@ public sealed class ChatViewModel
                 var response = await this.api.GenerateTextAsync(request, this.generationCts.Token);
                 if (response != null)
                 {
-                    assistantMessage.Content = ExtractStats(response, out var stats);
+                    assistantMessage.Content = NormalizeFormatting(ExtractStats(response, out var stats));
                     assistantMessage.Stats = stats;
                 }
             }
@@ -204,10 +233,13 @@ public sealed class ChatViewModel
     public Task CancelAsync()
     {
         this.generationCts?.Cancel();
+
+
+
         return Task.CompletedTask;
     }
 
-    private Task ScrollToBottomAsync()
+    public Task ScrollToBottomAsync()
     {
         if (this.messageContainer.Equals(default(ElementReference)))
         {
@@ -215,6 +247,55 @@ public sealed class ChatViewModel
         }
 
         return this.js.InvokeVoidAsync("sharpAiScrollToBottom", this.messageContainer).AsTask();
+    }
+
+    public async Task ApplyScrollAsync()
+    {
+        if (!this.scrollPending)
+        {
+            return;
+        }
+
+        this.scrollPending = false;
+        await this.ScrollToBottomAsync();
+    }
+
+    // Minimal manual sanitizer: remove script/style tags and on* attributes, and strip potentially dangerous tags.
+    public MarkupString RenderMarkdown(string? content)
+    {
+        var html = Markdown.ToHtml(content ?? string.Empty, MarkdownPipeline);
+
+        // remove script/style blocks
+        html = Regex.Replace(html, "<script\\b[^<]*(?:(?!<\\/script>)<[^<]*)*<\\/script>", string.Empty, RegexOptions.IgnoreCase);
+        html = Regex.Replace(html, "<style\\b[^<]*(?:(?!<\\/style>)<[^<]*)*<\\/style>", string.Empty, RegexOptions.IgnoreCase);
+
+        // remove on* attributes (onclick, onload, etc.)
+        html = Regex.Replace(html, @"\son[^""]+=""[^""]*""", string.Empty, RegexOptions.IgnoreCase);
+        html = Regex.Replace(html, "\\son[^=]+=('[^']*'|\"[^\"]*\")", string.Empty, RegexOptions.IgnoreCase);
+
+        // remove javascript: URIs
+        html = Regex.Replace(html, "javascript:\\s*[^\'\"]*", string.Empty, RegexOptions.IgnoreCase);
+
+        // Optionally further strip tags that we don't want (keep basic formatting and code blocks)
+        // Allowed tags: p, br, strong, em, code, pre, ul, ol, li, h1-h6, a
+        html = Regex.Replace(html, "<\\/?(?!p|br|strong|b|em|i|code|pre|ul|ol|li|h[1-6]|a)([^>]+)>", string.Empty, RegexOptions.IgnoreCase);
+
+        return new MarkupString(html);
+    }
+
+    private static string NormalizeFormatting(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return text;
+        }
+
+        return text
+            .Replace("\\r\\n", "\n", StringComparison.Ordinal)
+            .Replace("\\n", "\n", StringComparison.Ordinal)
+            .Replace("\\r", "\r", StringComparison.Ordinal)
+            .Replace("\\t", "\t", StringComparison.Ordinal)
+            .Replace("\t", "    ", StringComparison.Ordinal);
     }
 
     private static bool TryParseStats(string text, out LlamaContextStats? stats)

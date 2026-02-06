@@ -1,4 +1,6 @@
 ﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Web
+@inject IJSRuntime JS
 
 <RadzenLayout>
     <RadzenHeader>
@@ -11,9 +13,14 @@
         </RadzenStack>
     </RadzenHeader>
 
-    <RadzenSidebar @bind-Expanded="sidebarExpanded" ExpandedWidth="260px" CollapsedWidth="64px">
-        <NavMenu Collapsed="@(!sidebarExpanded)" />
+    <RadzenSidebar @bind-Expanded="sidebarExpanded" ExpandedWidth="@sidebarWidth" CollapsedWidth="@collapsedWidth" Style="@sidebarStyle">
+        <div id="sidebar-content" class="sidebar-content">
+            <NavMenu Collapsed="@(!sidebarExpanded)" />
+            <SidebarLog />
+        </div>
     </RadzenSidebar>
+
+    <div class="sidebar-resizer-overlay" style="position:fixed;top:56px;bottom:0;left:var(--sidebar-width,260px);width:10px;margin-left:-5px;cursor:col-resize;z-index:9999;background:rgba(0,0,0,0.06);" @onpointerdown="StartResize" title="Resize sidebar"></div>
 
     <RadzenBody>
         <RadzenStack Gap="1rem">
@@ -24,9 +31,58 @@
 
 @code {
     private bool sidebarExpanded = true;
+    private string sidebarWidth = "260px";
+    private string collapsedWidth = "64px";
 
-    private void ToggleSidebar()
+    private DotNetObjectReference<MainLayout>? objRef;
+
+    private async Task ToggleSidebar()
     {
         sidebarExpanded = !sidebarExpanded;
+        await ApplySidebarWidthAsync();
+    }
+
+    private async Task StartResize(PointerEventArgs e)
+    {
+        await JS.InvokeVoidAsync("sidebarStartResize", e.ClientX, objRef);
+    }
+
+    [JSInvokable]
+    public async Task OnSidebarResized(string width)
+    {
+        if (!string.IsNullOrWhiteSpace(width))
+        {
+            sidebarWidth = width;
+        }
+
+        await ApplySidebarWidthAsync();
+    }
+
+    private string sidebarStyle => $"width:{sidebarWidth};min-width:var(--sidebar-min-width);position:relative;overflow:hidden;";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            objRef = DotNetObjectReference.Create(this);
+            var saved = await JS.InvokeAsync<string>("sidebarGetWidth");
+            if (!string.IsNullOrWhiteSpace(saved))
+            {
+                sidebarWidth = saved;
+            }
+            await ApplySidebarWidthAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task ApplySidebarWidthAsync()
+    {
+        var currentWidth = sidebarExpanded ? sidebarWidth : collapsedWidth;
+        await JS.InvokeVoidAsync("sidebarApplyWidth", currentWidth);
+    }
+
+    public void Dispose()
+    {
+        objRef?.Dispose();
     }
 }

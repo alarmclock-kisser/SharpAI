@@ -71,14 +71,41 @@ namespace SharpAI.Runtime
 
             var stopwatch = Stopwatch.StartNew();
 
-            this.CurrentContext ??= new LlamaContextData();
+            LlamaContextData? contextToUse = null;
+            var isIsolated = generationRequest.Isolated;
+            if (isIsolated)
+            {
+                // create a temporary, empty context for isolated requests
+                contextToUse = new LlamaContextData
+                {
+                    Messages = new List<LlamaContextMessage>(),
+                    SystemPrompt = generationRequest.UseSystemPrompt ? this.SystemPrompt : null
+                };
+            }
+            else
+            {
+                this.CurrentContext ??= new LlamaContextData();
+                contextToUse = this.CurrentContext;
+            }
 
             var prompt = generationRequest.Prompt ?? string.Empty;
-            var shouldReplayHistory = this.primedContext == null
-                || this.primedContext != this.CurrentContext
-                || this.CurrentContext.Messages.Count < this.primedMessageCount;
-            var shouldResetExecutor = this.primedContext != null
-                && (this.primedContext != this.CurrentContext || this.CurrentContext.Messages.Count < this.primedMessageCount);
+            bool shouldReplayHistory;
+            bool shouldResetExecutor;
+            if (isIsolated)
+            {
+                // isolated requests use the temporary empty context; no prior conversation should be replayed
+                shouldReplayHistory = false;
+                // ensure executor is reset for isolated runs to avoid cross-contamination
+                shouldResetExecutor = true;
+            }
+            else
+            {
+                shouldReplayHistory = this.primedContext == null
+                    || this.primedContext != this.CurrentContext
+                    || this.CurrentContext.Messages.Count < this.primedMessageCount;
+                shouldResetExecutor = this.primedContext != null
+                    && (this.primedContext != this.CurrentContext || this.CurrentContext.Messages.Count < this.primedMessageCount);
+            }
 
             if (shouldResetExecutor && !this.TryResetExecutor())
             {
@@ -88,9 +115,10 @@ namespace SharpAI.Runtime
                 yield break;
             }
 
+            bool useSystemPrompt = generationRequest.UseSystemPrompt;
             var fullPrompt = shouldReplayHistory
-                ? BuildPrompt(this.CurrentContext, prompt)
-                : BuildTurnPrompt(prompt);
+                ? BuildPrompt(contextToUse, prompt, this.SystemPrompt, useSystemPrompt)
+                : BuildTurnPrompt(prompt, this.SystemPrompt, useSystemPrompt);
 
             var promptTokens = this.llamaContext.Tokenize(fullPrompt, addBos: true, special: false).Length;
             var contextSize = (int)this.llamaContext.ContextSize;
@@ -148,39 +176,48 @@ namespace SharpAI.Runtime
                 yield return responseText + statsText;
             }
 
-            this.CurrentContext.Messages.Add(new LlamaContextMessage
+            // If not isolated, persist the turn into the current context. Otherwise discard the temporary context.
+            if (!isIsolated && this.CurrentContext != null)
             {
-                Role = "user",
-                Content = prompt,
-                Timestamp = DateTime.UtcNow
-            });
+                this.CurrentContext.Messages.Add(new LlamaContextMessage
+                {
+                    Role = "user",
+                    Content = prompt,
+                    Timestamp = DateTime.UtcNow
+                });
 
-            this.CurrentContext.Messages.Add(new LlamaContextMessage
-            {
-                Role = "assistant",
-                Content = responseText,
-                Timestamp = DateTime.UtcNow,
-                Stats = stats
-            });
+                this.CurrentContext.Messages.Add(new LlamaContextMessage
+                {
+                    Role = "assistant",
+                    Content = responseText,
+                    Timestamp = DateTime.UtcNow,
+                    Stats = stats
+                });
 
-            this.primedContext = this.CurrentContext;
-            this.primedMessageCount = this.CurrentContext.Messages.Count;
+                this.primedContext = this.CurrentContext;
+                this.primedMessageCount = this.CurrentContext.Messages.Count;
+
+                if (!string.IsNullOrWhiteSpace(this.CurrentContext.FilePath))
+                {
+                    await this.SaveContextAsync(this.CurrentContext.FilePath).ConfigureAwait(false);
+                }
+            }
 
             StaticLogger.Log($"Generated {tokens.Length} tokens in {stopwatch.Elapsed.TotalSeconds:F2}s.");
-
-            if (!string.IsNullOrWhiteSpace(this.CurrentContext.FilePath))
-            {
-                await this.SaveContextAsync(this.CurrentContext.FilePath).ConfigureAwait(false);
-            }
         }
 
-        private static string BuildPrompt(LlamaContextData context, string prompt)
+        private static string BuildPrompt(LlamaContextData context, string prompt, string? systemPrompt, bool useSystemPrompt)
         {
             var sb = new StringBuilder();
             var history = context.Messages
                 .Where(message => !string.IsNullOrWhiteSpace(message.Content))
                 .TakeLast(10)
                 .ToList();
+
+            if (useSystemPrompt && !string.IsNullOrWhiteSpace(systemPrompt))
+            {
+                sb.Append("system: ").AppendLine(systemPrompt);
+            }
 
             foreach (var message in history)
             {
@@ -192,9 +229,13 @@ namespace SharpAI.Runtime
             return sb.ToString();
         }
 
-        private static string BuildTurnPrompt(string prompt)
+        private static string BuildTurnPrompt(string prompt, string? systemPrompt, bool useSystemPrompt)
         {
             var sb = new StringBuilder();
+            if (useSystemPrompt && !string.IsNullOrWhiteSpace(systemPrompt))
+            {
+                sb.Append("system: ").AppendLine(systemPrompt);
+            }
             sb.Append("user: ").AppendLine(prompt);
             sb.Append("assistant: ");
             return sb.ToString();

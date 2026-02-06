@@ -1,0 +1,146 @@
+@inject SharpAI.Client.ApiClient Api
+@inject IJSRuntime JS
+@using System.Linq
+@using Microsoft.AspNetCore.SignalR.Client
+
+<RadzenStack Orientation="Orientation.Vertical" Gap="0.5rem" Style="padding:0.5rem;flex:1;overflow:hidden;border-top:1px solid rgba(0,0,0,0.08);color:#111;min-height:0">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+        <RadzenText Text="Log" Style="font-size:0.95rem;font-weight:600;color:#111" />
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.35rem" Style="margin-left:0.5rem;">
+            <RadzenCheckBox @bind-Value="wrapText" TValue="bool" Name="wrapToggle" />
+            <RadzenText Text="Wrap" Style="font-size:0.85rem;color:#111" />
+        </RadzenStack>
+        <RadzenButton ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Text="Refresh" Click="Refresh" Style="margin-left:auto" />
+    </RadzenStack>
+
+    <div id="sidebar-log-entries" class="log-entries" style="flex:1;display:block;overflow-y:auto;background:transparent;font-size:0.8rem;color:#111;padding-right:0.5rem;padding-bottom:50px;min-height:0;box-sizing:border-box;max-height:calc(100vh - 106px);">
+        @if (entries == null)
+        {
+            <RadzenText Text="Loading..." Style="color:rgba(0,0,0,0.5)" />
+        }
+        else if (!entries.Any())
+        {
+            <RadzenText Text="No log entries." Style="color:rgba(0,0,0,0.5)" />
+        }
+        else
+        {
+            foreach (var e in entries)
+            {
+                <div style="padding:0.25rem 0;border-bottom:1px solid rgba(0,0,0,0.06);white-space:@(wrapText ? "normal" : "pre");word-wrap:break-word;color:#111">@e</div>
+            }
+        }
+    </div>
+</RadzenStack>
+
+@code {
+    private List<string>? entries;
+    private bool wrapText = false;
+    private string source = "binding";
+    private HubConnection? hubConnection;
+    private bool scrollToBottomPending;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLogsAsync();
+        await StartHubAsync();
+        // Ensure initial scroll after first load
+        scrollToBottomPending = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (scrollToBottomPending)
+        {
+            scrollToBottomPending = false;
+            await JS.InvokeVoidAsync("sidebarAdjustLogHeight", "sidebar-log-entries");
+            await JS.InvokeVoidAsync("sidebarScrollToBottom", "sidebar-log-entries");
+        }
+        else if (firstRender)
+        {
+            // ensure initial sizing
+            await JS.InvokeVoidAsync("sidebarAdjustLogHeight", "sidebar-log-entries");
+        }
+    }
+
+    private async Task StartHubAsync()
+    {
+        if (hubConnection != null)
+        {
+            return;
+        }
+
+        var hubUrl = $"{Api.BaseUrl}/loghub";
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(hubUrl)
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<string>("LogAdded", logEntry =>
+        {
+            _ = InvokeAsync(() =>
+            {
+                entries ??= new List<string>();
+                entries.Add(logEntry);
+                scrollToBottomPending = true;
+                StateHasChanged();
+                // also try scrolling immediately
+                _ = JS.InvokeVoidAsync("sidebarScrollToBottom", "sidebar-log-entries");
+            });
+        });
+
+        try
+        {
+            await hubConnection.StartAsync();
+        }
+        catch
+        {
+            // ignore; manual refresh still works
+        }
+    }
+
+    private async Task LoadLogsAsync()
+    {
+        try
+        {
+            if (string.Equals(source, "concurrent", StringComparison.OrdinalIgnoreCase))
+            {
+                var dict = await Api.GetLogsEntriesAsync();
+                if (dict != null)
+                {
+                    entries = dict.OrderBy(kv => kv.Key).Select(kv => kv.Value).ToList();
+                }
+                else
+                {
+                    entries = new List<string>();
+                }
+            }
+            else
+            {
+                var binding = await Api.GetLogsBindingAsync();
+                entries = binding?.ToList() ?? new List<string>();
+            }
+        }
+        catch
+        {
+            entries = new List<string>();
+        }
+
+        StateHasChanged();
+        scrollToBottomPending = true;
+    }
+
+    private async Task Refresh()
+    {
+        await LoadLogsAsync();
+    }
+
+    
+
+    public void Dispose()
+    {
+        if (hubConnection != null)
+        {
+            _ = hubConnection.DisposeAsync();
+        }
+    }
+}

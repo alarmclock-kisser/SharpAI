@@ -18,12 +18,51 @@ namespace SharpAI.Runtime
 
 
 
-        public LlamaService(string[]? additionalDirectories = null)
+        public LlamaService(string[]? additionalDirectories = null, string? defaultModel = null, string preferredBackend = "CPU", int maxContextSize = 2048, string? defaultContext = null, string? systemPrompt = null)
         {
             this.LoadModelFiles(additionalDirectories);
+            if (!string.IsNullOrEmpty(systemPrompt))
+            {
+                this.SystemPrompt = systemPrompt;
+            }
 
+            if (!string.IsNullOrEmpty(defaultContext))
+            {
+                if (defaultContext.StartsWith("/recent"))
+                {
+                    var mostRecentContext = this.GetAllContextsAsync().GetAwaiter().GetResult()?.OrderByDescending(c => c.LatestActivityDate).FirstOrDefault();
+                    if (mostRecentContext != null)
+                    {
+                        defaultContext = mostRecentContext.FilePath;
+                    }
+                }
 
+                this.CurrentContext = this.LoadContextAsync(defaultContext).GetAwaiter().GetResult();
+            }
 
+            if (!string.IsNullOrEmpty(defaultModel))
+            {
+                var modelFile = this.GetModelByNameOrPath(defaultModel, fuzzy: true);
+                if (modelFile != null)
+                {
+                    LlamaBackend backend = preferredBackend switch
+                    {
+                        "CPU" => LlamaBackend.CPU,
+                        "CUDA" => LlamaBackend.CUDA,
+                        // "DirectML" => LlamaBackend.DirectML, // not installed
+                        // "OpenVINO" => LlamaBackend.OpenVINO, // not installed
+                        _ => LlamaBackend.CPU
+                    };
+
+                    LlamaModelLoadRequest request = new LlamaModelLoadRequest(modelFile, maxContextSize, backend);
+                    var loadedModel = this.LoadModelAsync(request).GetAwaiter().GetResult();
+                }
+            }
+        }
+
+        public LlamaService(Appsettings appsettings)
+        {
+            
         }
 
 

@@ -1,0 +1,229 @@
+﻿@page "/audio"
+
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Components.Web
+@using System.Threading
+@using Radzen
+@using Radzen.Blazor
+@using SharpAI.Shared
+@using SharpAI.WebApp.ViewModels
+@inject AudioViewModel Vm
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<RadzenHeading Size="H1" Text="Audio" />
+
+<style>
+    .audio-upload .rz-fileupload-files {
+        display: none;
+    }
+</style>
+
+<RadzenRow Gap="1.5rem">
+    <RadzenColumn Size="12" SizeLG="4">
+        <RadzenCard Variant="Variant.Outlined" Title="Upload & Controls">
+            <ChildContent>
+                <RadzenStack Gap="0.75rem">
+                    <RadzenUpload Auto="false" ChooseText="Select audio (MyMusic)" Accept="audio/*" Change="@Vm.OnFileSelectedAsync" ShowFileList="false" Class="audio-upload" />
+
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                        <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Refresh" Click="@Vm.RefreshAsync" />
+                        <RadzenButton ButtonStyle="ButtonStyle.Primary" Text="@(Vm.IsRecording==true ? "Stop" : "Record")" Click="@Vm.ToggleRecordAsync" />
+                    </RadzenStack>
+
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                        <RadzenBadge Style="@($"background-color:{Vm.RecordingStatusColorHex}; color:white; padding:4px 8px; border-radius:4px;")">@Vm.RecordingStatus</RadzenBadge>
+                        @if (!string.IsNullOrWhiteSpace(Vm.StatusMessage))
+                        {
+                            <RadzenText Text="@Vm.StatusMessage" />
+                        }
+                    </RadzenStack>
+
+                    @if (Vm.IsRecording == true)
+                    {
+                        <RadzenText Text="@($"Recording time: {TimeSpan.FromSeconds(_recordingSeconds):mm\\:ss}")" TextStyle="TextStyle.Caption" />
+                    }
+
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                        <label style="display:flex; align-items:center; gap:0.5rem;">
+                            <input type="checkbox" @bind="Vm.IncludeWaveforms" @bind:after="Vm.RefreshAsync" />
+                            <span>Waveform previews</span>
+                        </label>
+
+                        <label style="display:flex; align-items:center; gap:0.25rem; margin-left:1rem;">
+                            <span style="font-size:0.9rem; color:var(--rz-text-secondary);">Preview W:</span>
+                            <input type="number" min="16" value="@Vm.WaveformPreviewWidth" style="width:5rem" @onchange="@(async (ChangeEventArgs e) => { if(int.TryParse(e.Value?.ToString(), out var v)){ Vm.WaveformPreviewWidth = v; await Vm.RefreshAsync(); } })" />
+                        </label>
+
+                        <label style="display:flex; align-items:center; gap:0.25rem;">
+                            <span style="font-size:0.9rem; color:var(--rz-text-secondary);">H:</span>
+                            <input type="number" min="8" value="@Vm.WaveformPreviewHeight" style="width:4.5rem" @onchange="@(async (ChangeEventArgs e) => { if(int.TryParse(e.Value?.ToString(), out var v)){ Vm.WaveformPreviewHeight = v; await Vm.RefreshAsync(); } })" />
+                        </label>
+                    </RadzenStack>
+                </RadzenStack>
+            </ChildContent>
+        </RadzenCard>
+    </RadzenColumn>
+
+    <RadzenColumn Size="12" SizeLG="8">
+        <RadzenRow Gap="0.75rem">
+            @if (Vm.AudioInfos.Count == 0)
+            {
+                <RadzenText Text="No audios available." TextStyle="TextStyle.Caption" />
+            }
+            else
+            {
+                @foreach (var audio in Vm.AudioInfos)
+                {
+                    <RadzenColumn Size="12" SizeMD="6" SizeXL="4">
+                        <RadzenCard Variant="Variant.Outlined">
+                            <ChildContent>
+                                <RadzenStack Gap="0.5rem">
+                                    <RadzenText Text="@audio.Name" TextStyle="TextStyle.Subtitle2" />
+                                    <RadzenText Text="@($"{audio.DurationInSeconds:0.0}s · {System.IO.Path.GetFileName(audio.FilePath)}")" TextStyle="TextStyle.Caption" />
+                                    <RadzenText Text="@($"Created: {audio.CreatedAt:G}")" TextStyle="TextStyle.Caption" />
+
+                                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                                        <RadzenButton ButtonStyle="ButtonStyle.Primary" Text="Download" Size="ButtonSize.Small" Click="@( async (args) => await OnDownloadClick(audio.Id, audio.Name, args) )" />
+                                        <RadzenButton ButtonStyle="ButtonStyle.Secondary" Text="Export" Size="ButtonSize.Small" Click="@( async (args) => await OnExportClick(audio.Id, audio.Name, args) )" />
+                                        <RadzenButton ButtonStyle="ButtonStyle.Danger" Text="Delete" Size="ButtonSize.Small" Click="@( () => Vm.DeleteAsync(audio.Id) )" />
+                                    </RadzenStack>
+
+                                    @if (Vm.IncludeWaveforms && audio.WaveformPreview != null && !string.IsNullOrWhiteSpace(audio.WaveformPreview.Data))
+                                    {
+                                        var mime = string.IsNullOrWhiteSpace(audio.WaveformPreview.MimeType) ? "image/png" : audio.WaveformPreview.MimeType;
+                                        <div class="waveform-resizable" data-audio-id="@audio.Id" style="@($"border:1px solid rgba(0,0,0,0.08); padding:6px; resize:both; overflow:auto; width:{Vm.WaveformPreviewWidth}px; height:{Vm.WaveformPreviewHeight}px; position:relative;")">
+                                            <img src="@($"data:{mime};base64,{audio.WaveformPreview.Data}")" style="width:100%; height:100%; object-fit:fill; display:block;" />
+                                            <div style="width:14px; height:14px; position:absolute; right:4px; bottom:4px; background:linear-gradient(135deg, rgba(0,0,0,0.15) 25%, transparent 25%), linear-gradient(225deg, rgba(0,0,0,0.15) 25%, transparent 25%); background-size:6px 6px; border-radius:2px;"></div>
+                                        </div>
+                                    }
+                                </RadzenStack>
+                            </ChildContent>
+                        </RadzenCard>
+                    </RadzenColumn>
+                }
+            }
+        </RadzenRow>
+    </RadzenColumn>
+</RadzenRow>
+
+@code {
+    protected override Task OnInitializedAsync()
+    {
+        return Vm.InitializeAsync();
+    }
+    private DotNetObjectReference<AudioViewModel>? _vmRef;
+    private CancellationTokenSource? _recordingCts;
+    private int _recordingSeconds;
+    private bool? _lastRecordingState;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _vmRef = DotNetObjectReference.Create(Vm);
+            // Register a ResizeObserver for elements with class 'waveform-resizable'
+            await JS.InvokeVoidAsync("sharpai.registerWaveformResizeObserver", _vmRef);
+        }
+
+        await EnsureRecordingTimerAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("sharpai.unregisterWaveformResizeObserver");
+        }
+        catch { }
+        _recordingCts?.Cancel();
+        _vmRef?.Dispose();
+    }
+
+    private async Task EnsureRecordingTimerAsync()
+    {
+        if (_lastRecordingState == Vm.IsRecording)
+        {
+            return;
+        }
+
+        _lastRecordingState = Vm.IsRecording;
+
+        if (Vm.IsRecording == true)
+        {
+            _recordingSeconds = 0;
+            _recordingCts?.Cancel();
+            _recordingCts = new CancellationTokenSource();
+            _ = RunRecordingTimerAsync(_recordingCts.Token);
+        }
+        else
+        {
+            _recordingCts?.Cancel();
+            _recordingCts = null;
+            _recordingSeconds = 0;
+        }
+    }
+
+    private async Task RunRecordingTimerAsync(CancellationToken token)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                _recordingSeconds++;
+                await Vm.RefreshAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task OnDownloadClick(Guid id, string name, MouseEventArgs args)
+    {
+        try
+        {
+            // If Ctrl is pressed, open save dialog via browser download of the file stream
+            if (args?.CtrlKey == true)
+            {
+                var url = $"{Vm.ApiBaseUrl.TrimEnd('/')}/api/audio/audios/download?guid={id}";
+                // use JS to fetch blob and trigger save
+                await JS.InvokeVoidAsync("sharpai.downloadUrl", url, $"{name}_{id}.wav");
+            }
+            else
+            {
+                // normal download: navigate to endpoint (will prompt browser download)
+                var url = $"{Vm.ApiBaseUrl.TrimEnd('/')}/api/audio/audios/download?guid={id}";
+                await JS.InvokeVoidAsync("open", url, "_blank");
+            }
+        }
+        catch (Exception ex)
+        {
+            Vm.StatusMessage = "Download error: " + ex.Message;
+        }
+    }
+
+    private async Task OnExportClick(Guid id, string name, MouseEventArgs args)
+    {
+        try
+        {
+            if (args?.CtrlKey == true)
+            {
+                // Trigger server export to MyMusic (server side). VM.ExportAsync will call API Export.
+                await Vm.ExportAsync(id);
+            }
+            else
+            {
+                // Normal: call server export and show returned path
+                await Vm.ExportAsync(id);
+            }
+        }
+        catch (Exception ex)
+        {
+            Vm.StatusMessage = "Export error: " + ex.Message;
+        }
+    }
+}

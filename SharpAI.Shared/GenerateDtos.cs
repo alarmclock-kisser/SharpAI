@@ -13,6 +13,8 @@ namespace SharpAI.Shared
         public bool Stream { get; set; } = true;
         public List<string> Base64Images { get; set; } = new();
 
+        public bool UseSystemPrompt { get; set; } = true;
+        public bool Isolated { get; set; } = false;
 
 
 

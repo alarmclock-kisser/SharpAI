@@ -27,6 +27,9 @@ public sealed class ModelViewModel
     public string? StatusMessage { get; private set; }
     public string? ErrorMessage { get; private set; }
 
+
+    private bool FirstRender { get; set; } = true;
+
     public Task InitializeAsync() => this.RefreshAsync();
 
     public async Task RefreshAsync()
@@ -48,6 +51,25 @@ public sealed class ModelViewModel
         if (items != null)
         {
             this.Models.AddRange(items);
+        }
+
+        if (this.FirstRender)
+        {
+            var appsettings = await this.api.GetAppsettingsAsync();
+            var backend = appsettings?.PreferredLlamaBackend.ToLowerInvariant() switch
+            {
+                "cpu" => LlamaBackend.CPU,
+                "cuda" => LlamaBackend.CUDA,
+                "opencl" => LlamaBackend.OpenCL,
+                _ => LlamaBackend.CPU
+            };
+            this.Backend = backend;
+            this.ContextSize = appsettings?.MaxContextTokens ?? this.ContextSize;
+            this.DefaultTemperature = (float)(appsettings?.Temperature ?? this.DefaultTemperature);
+            this.MaxTokens = appsettings?.MaxResponseTokens ?? this.MaxTokens;
+            this.SelectedModelPath = string.IsNullOrWhiteSpace(appsettings?.DefaultLlamaModel) ? this.Models.FirstOrDefault()?.FilePath : this.Models.FirstOrDefault(m => m.FilePath.Contains(appsettings.DefaultLlamaModel, StringComparison.OrdinalIgnoreCase))?.FilePath;
+            
+            this.FirstRender = false;
         }
     }
 

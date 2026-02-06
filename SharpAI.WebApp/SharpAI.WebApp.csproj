@@ -9,6 +9,8 @@
 
   <ItemGroup>
     <PackageReference Include="Radzen.Blazor" Version="8.7.5" />
+    <PackageReference Include="Markdig" Version="0.39.2" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.0" />
   </ItemGroup>
 
   <ItemGroup>

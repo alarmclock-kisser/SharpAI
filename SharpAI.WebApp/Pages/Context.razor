@@ -12,6 +12,11 @@
         <RadzenCard Variant="Variant.Outlined" Title="Available contexts">
             <ChildContent>
                 <RadzenStack Gap="0.75rem">
+                    <div style="margin-left: auto; display:flex; align-items:center; gap:0.35rem;">
+                        <RadzenCheckBox Value="Vm.OrderByLatest" 
+                                        ValueChanged="async (bool value) => { Vm.OrderByLatest = value; await Vm.RefreshAsync(); }" />
+                        <label style="margin:0; font-size:0.95rem;">Order by latest</label>
+                    </div>
                     <RadzenListBox Data="Vm.Contexts"
                                    ValueProperty="FilePath"
                                    @bind-Value="Vm.SelectedContextPath"
@@ -21,15 +26,22 @@
                         </Template>
                     </RadzenListBox>
 
-                    <RadzenFormField Text="Save as (optional)">
-                        <RadzenTextBox @bind-Value="Vm.SaveName" Placeholder="context-name" />
+                    <RadzenFormField Text="Rename to or save as (optional)">
+                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Style="align-items:center;">
+                            <RadzenTextBox @bind-Value="Vm.SaveName" Placeholder="context-name" Style="min-width:180px; width:100%;" />
+                        </RadzenStack>
                     </RadzenFormField>
 
                     <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
                         <RadzenButton ButtonStyle="ButtonStyle.Primary" Text="Load" Click="@Vm.LoadAsync" />
                         <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Save" Click="@Vm.SaveAsync" />
                         <RadzenButton ButtonStyle="ButtonStyle.Secondary" Text="New" Click="@Vm.CreateAsync" />
+                        <RadzenButton ButtonStyle="ButtonStyle.Warning" Text="Rename" Click="@Vm.RenameAsync" />
                         <RadzenButton ButtonStyle="ButtonStyle.Danger" Text="Delete" Click="@Vm.DeleteAsync" />
+                        <div style="margin-left: auto; display:flex; align-items:center; gap:0.35rem;">
+                            <RadzenCheckBox @bind-Value="Vm.Temporary" />
+                            <label style="margin:0; font-size:0.95rem;">Temporary</label>
+                        </div>
                     </RadzenStack>
                                                                                                                         
                 </RadzenStack>
@@ -46,10 +58,20 @@
                 else
                 {
                     <RadzenStack Gap="0.5rem">
+                        <RadzenText Text="@($"Current: {ContextViewModel.GetContextLabel(Vm.CurrentContext)}")" Style="color: var(--rz-success);" />
                         <RadzenText Text="@($"File: {(string.IsNullOrWhiteSpace(Vm.CurrentContext.FilePath) ? "Temporary" : Vm.CurrentContext.FilePath)}")" />
                         <RadzenText Text="@($"Messages: {Vm.CurrentContext.Messages.Count}")" />
                     </RadzenStack>
                 }
+
+                <RadzenStack Gap="0.75rem" Style="margin-top: 1rem;">
+                    <RadzenFormField Text="System prompt">
+                        <RadzenTextArea @bind-Value="Vm.NewSystemPrompt"
+                                        Style="width: 100%; max-height: calc(70vh - 200px); overflow: auto;"
+                                        Rows="8" />
+                    </RadzenFormField>
+                    <RadzenButton ButtonStyle="ButtonStyle.Primary" Text="Update prompt" Click="@Vm.SetSystemPromptAsync" />
+                </RadzenStack>
             </ChildContent>
         </RadzenCard>
     </RadzenColumn>

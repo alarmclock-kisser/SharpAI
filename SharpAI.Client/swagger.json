@@ -5,6 +5,671 @@
     "version": "1.0"
   },
   "paths": {
+    "/api/Audio/audios": {
+      "get": {
+        "tags": [
+          "Audio"
+        ],
+        "parameters": [
+          {
+            "name": "includeWaveforms",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "width",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 512
+            }
+          },
+          {
+            "name": "height",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AudioObjInfo"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AudioObjInfo"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AudioObjInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Audio/audios/data": {
+      "get": {
+        "tags": [
+          "Audio"
+        ],
+        "parameters": [
+          {
+            "name": "guid",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sampleRate",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "channels",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "bitDepth",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioObjData"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioObjData"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioObjData"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Audio/audios/waveform": {
+      "get": {
+        "tags": [
+          "Audio"
+        ],
+        "parameters": [
+          {
+            "name": "guid",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "width",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 512
+            }
+          },
+          {
+            "name": "height",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 64
+            }
+          },
+          {
+            "name": "samplesPerPixel",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "backColorHex",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "#FFFFFF"
+            }
+          },
+          {
+            "name": "graphColorHex",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "#000000"
+            }
+          },
+          {
+            "name": "useCache",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          {
+            "name": "maxWorkers",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageObjData"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageObjData"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageObjData"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Audio/audios/upload": {
+      "post": {
+        "tags": [
+          "Audio"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioObjInfo"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioObjInfo"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioObjInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Audio/audios/record/recording": {
+      "get": {
+        "tags": [
+          "Audio"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "boolean"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Audio/audios/record": {
+      "post": {
+        "tags": [
+          "Audio"
+        ],
+        "parameters": [
+          {
+            "name": "sampleRate",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 16000
+            }
+          },
+          {
+            "name": "channels",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "bitDepth",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 32
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioObjInfo"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioObjInfo"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioObjInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Audio/audios/record/stop": {
+      "post": {
+        "tags": [
+          "Audio"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Audio/audios/resample": {
+      "get": {
+        "tags": [
+          "Audio"
+        ],
+        "parameters": [
+          {
+            "name": "guid",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sampleRate",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 16000
+            }
+          },
+          {
+            "name": "channels",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "bitDepth",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 32
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioObjData"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioObjData"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioObjData"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Audio/audios/rechannel": {
+      "get": {
+        "tags": [
+          "Audio"
+        ],
+        "parameters": [
+          {
+            "name": "guid",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sampleRate",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 16000
+            }
+          },
+          {
+            "name": "channels",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "bitDepth",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 32
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioObjData"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioObjData"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioObjData"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Audio/audios/export": {
+      "get": {
+        "tags": [
+          "Audio"
+        ],
+        "parameters": [
+          {
+            "name": "guid",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exportDir",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileName",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bits",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 32
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Audio/audios/download": {
+      "get": {
+        "tags": [
+          "Audio"
+        ],
+        "parameters": [
+          {
+            "name": "guid",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bits",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 32
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Audio/download": {
+      "get": {
+        "tags": [
+          "Audio"
+        ],
+        "parameters": [
+          {
+            "name": "guid",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bits",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 32
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Audio/audios/delete": {
+      "delete": {
+        "tags": [
+          "Audio"
+        ],
+        "parameters": [
+          {
+            "name": "guid",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Audio/audios/clear": {
+      "delete": {
+        "tags": [
+          "Audio"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Image/delete": {
       "delete": {
         "tags": [
@@ -321,6 +986,93 @@
         }
       }
     },
+    "/systemprompt/get": {
+      "get": {
+        "tags": [
+          "Llama"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/systemprompt/set": {
+      "post": {
+        "tags": [
+          "Llama"
+        ],
+        "parameters": [
+          {
+            "name": "updateCurrentContext",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/model/list": {
       "get": {
         "tags": [
@@ -532,6 +1284,16 @@
         "tags": [
           "Llama"
         ],
+        "parameters": [
+          {
+            "name": "sortedByLatest",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -717,6 +1479,51 @@
         }
       }
     },
+    "/context/rename": {
+      "post": {
+        "tags": [
+          "Llama"
+        ],
+        "parameters": [
+          {
+            "name": "contextNameOrPath",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "newName",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/context/delete": {
       "delete": {
         "tags": [
@@ -854,6 +1661,14 @@
               "format": "float",
               "default": 0.95
             }
+          },
+          {
+            "name": "useSystemPrompt",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
           }
         ],
         "responses": {
@@ -976,6 +1791,14 @@
               "format": "float",
               "default": 0.95
             }
+          },
+          {
+            "name": "useSystemPrompt",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
           }
         ],
         "responses": {
@@ -1075,6 +1898,14 @@
               "format": "float",
               "default": 0.95
             }
+          },
+          {
+            "name": "useSystemPrompt",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
           }
         ],
         "responses": {
@@ -1153,10 +1984,645 @@
           }
         }
       }
+    },
+    "/api/Log/appsettings": {
+      "get": {
+        "tags": [
+          "Log"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Appsettings"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Appsettings"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Appsettings"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Log/log/binding": {
+      "get": {
+        "tags": [
+          "Log"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Log/log/entries": {
+      "get": {
+        "tags": [
+          "Log"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Log/log/message": {
+      "post": {
+        "tags": [
+          "Log"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string",
+                "default": ""
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "string",
+                "default": ""
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "string",
+                "default": ""
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "boolean",
+                  "nullable": true
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "boolean",
+                  "nullable": true
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "boolean",
+                  "nullable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/onnx-status": {
+      "get": {
+        "tags": [
+          "Onnx"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhisperModelInfo"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhisperModelInfo"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhisperModelInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/whisper-models": {
+      "get": {
+        "tags": [
+          "Onnx"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WhisperModelInfo"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WhisperModelInfo"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WhisperModelInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/whisper-load": {
+      "post": {
+        "tags": [
+          "Onnx"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhisperModelInfo"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhisperModelInfo"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhisperModelInfo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "boolean"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/whisper-dispose": {
+      "delete": {
+        "tags": [
+          "Onnx"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "boolean"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/whisper-run": {
+      "post": {
+        "tags": [
+          "Onnx"
+        ],
+        "parameters": [
+          {
+            "name": "audioId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "transcribe",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "useTimestamps",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "chunkDuration",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double",
+              "default": 20
+            }
+          },
+          {
+            "name": "IsCancellationRequested",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "CanBeCanceled",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "WaitHandle.Handle",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/IntPtr"
+            }
+          },
+          {
+            "name": "WaitHandle.SafeWaitHandle.IsInvalid",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "WaitHandle.SafeWaitHandle.IsClosed",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/whisper-progress": {
+      "get": {
+        "tags": [
+          "Onnx"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "number",
+                  "format": "double",
+                  "nullable": true
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "number",
+                  "format": "double",
+                  "nullable": true
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "number",
+                  "format": "double",
+                  "nullable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/whisper-run-stream": {
+      "post": {
+        "tags": [
+          "Onnx"
+        ],
+        "parameters": [
+          {
+            "name": "audioId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "transcribe",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "useTimestamps",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "useOverlap",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          {
+            "name": "chunkDuration",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "Appsettings": {
+        "type": "object",
+        "properties": {
+          "llamaModelDirectories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "whisperModelDirectories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "defaultLlamaModel": {
+            "type": "string",
+            "nullable": true
+          },
+          "defaultWhistperModel": {
+            "type": "string",
+            "nullable": true
+          },
+          "preferredLlamaBackend": {
+            "type": "string",
+            "nullable": true
+          },
+          "ressourceImagePaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "ressourceAudioPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "customAudioExportDirectory": {
+            "type": "string",
+            "nullable": true
+          },
+          "systemPrompt": {
+            "type": "string",
+            "nullable": true
+          },
+          "defaultContext": {
+            "type": "string",
+            "nullable": true
+          },
+          "maxContextTokens": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxResponseTokens": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "temperature": {
+            "type": "number",
+            "format": "double"
+          },
+          "topP": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AudioObjData": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sampleRate": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "channels": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "bitDepth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "durationInSeconds": {
+            "type": "number",
+            "format": "double"
+          },
+          "data": {
+            "type": "string",
+            "nullable": true
+          },
+          "length": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "AudioObjInfo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "filePath": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "durationInSeconds": {
+            "type": "number",
+            "format": "double"
+          },
+          "waveformPreview": {
+            "$ref": "#/components/schemas/ImageObjData"
+          }
+        },
+        "additionalProperties": false
+      },
       "ImageObjData": {
         "type": "object",
         "properties": {
@@ -1213,6 +2679,10 @@
         },
         "additionalProperties": false
       },
+      "IntPtr": {
+        "type": "object",
+        "additionalProperties": false
+      },
       "LlamaBackend": {
         "enum": [
           0,
@@ -1229,12 +2699,22 @@
             "type": "string",
             "nullable": true
           },
+          "systemPrompt": {
+            "type": "string",
+            "nullable": true
+          },
           "messages": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LlamaContextMessage"
             },
             "nullable": true
+          },
+          "latestActivityDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "readOnly": true
           }
         },
         "additionalProperties": false
@@ -1314,6 +2794,12 @@
               "type": "string"
             },
             "nullable": true
+          },
+          "useSystemPrompt": {
+            "type": "boolean"
+          },
+          "isolated": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -1355,15 +2841,71 @@
           }
         },
         "additionalProperties": false
+      },
+      "WhisperModelInfo": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "rootPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "modelName": {
+            "type": "string",
+            "nullable": true,
+            "readOnly": true
+          },
+          "sizeInMb": {
+            "type": "number",
+            "format": "double"
+          },
+          "encoderPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "decoderPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "tokenizerPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "preprocessorConfigPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "configPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "generationConfigPath": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       }
     }
   },
   "tags": [
     {
+      "name": "Audio"
+    },
+    {
       "name": "Image"
     },
     {
       "name": "Llama"
+    },
+    {
+      "name": "Log"
+    },
+    {
+      "name": "Onnx"
     }
   ]
 }

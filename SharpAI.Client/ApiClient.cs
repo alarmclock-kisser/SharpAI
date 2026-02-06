@@ -18,6 +18,9 @@ namespace SharpAI.Client
         private readonly string baseUrl;
         private readonly InternalClient internalClient;
 
+        private CancellationTokenSource? CtsWhisper = null;
+        private Appsettings? cachedAppsettings = null;
+
 
         public string? LastErrorMessage { get; private set; }
 
@@ -33,6 +36,225 @@ namespace SharpAI.Client
         }
 
 
+        // Appsettings
+        public async Task<Appsettings?> GetAppsettingsAsync(bool useCache = true)
+        {
+            if (useCache && this.cachedAppsettings != null)
+            {
+                return this.cachedAppsettings;
+            }
+
+            try
+            {
+                var response = await this.internalClient.AppsettingsAsync();
+                if (useCache)
+                {
+                    this.cachedAppsettings = response;
+                }
+                return response;
+            }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+
+
+        // LogController
+        public async Task<ICollection<string>?> GetLogsBindingAsync()
+        {
+            try
+            {
+                var response = await this.internalClient.BindingAsync();
+                return response;
+            }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                return [];
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+        public async Task<IDictionary<string, string>?> GetLogsEntriesAsync()
+        {
+            try
+            {
+                var response = await this.internalClient.EntriesAsync();
+                return response;
+            }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+        public async Task<bool?> LogMessageAsync(string logMessage)
+        {
+            try
+            {
+                var response = await this.internalClient.MessageAsync(logMessage);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+
+        // AudioController
+        public async Task<ICollection<AudioObjInfo>> GetAudiosAsync(int? waveformWidth = null, int? waveformHeight = null)
+        {
+            try
+            {
+                // If width and height are null, no waveforms will be included. If both have values, waveforms will be included with the specified dimensions.
+                // If only one has value, it will be ignored and no waveforms will be included.
+                bool includeWaveforms = waveformWidth.HasValue && waveformHeight.HasValue;
+                return await this.internalClient.AudiosAsync(includeWaveforms, waveformWidth, waveformHeight);
+            }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                return [];
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return [];
+            }
+        }
+
+        public async Task<AudioObjData?> GetAudioDataAsync(Guid id, int? sampleRate = null, int? channels = null, int? bitDepth = null)
+        {
+            try
+            {
+                string guidString = id.ToString();
+                return await this.internalClient.DataAsync(guidString, sampleRate, channels, bitDepth);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+        public async Task<AudioObjInfo?> UploadAudioAsync(FileParameter fParam)
+        {
+            try
+            {
+                var info = await this.internalClient.UploadAsync(fParam);
+                return info;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+        public async Task<bool> DeleteAudioAsync(Guid id)
+        {
+            try
+            {
+                string guidString = id.ToString();
+                await this.internalClient.DeleteAsync(guidString);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return false;
+            }
+        }
+
+        public async Task<AudioObjInfo?> StartRecordingAsync(int? sampleRate = 16000, int? channels = 1, int? bitDepth = 32)
+        {
+            try
+            {
+                var info = await this.internalClient.RecordAsync(sampleRate, channels, bitDepth);
+                return info;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+        public async Task<bool> StopRecordingAsync()
+        {
+            try
+            {
+                await this.internalClient.StopAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return false;
+            }
+        }
+
+        public async Task<bool?> GetRecordingStatusAsync()
+        {
+            try
+            {
+                var status = await this.internalClient.RecordingAsync();
+                return status;
+            }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+        public async Task<string?> ExportAudioAsync(Guid id, string? exportDir = null, string? fileName = null, int bits = 32)
+        {
+            try
+            {
+                string guidString = id.ToString();
+                string? filePath = await this.internalClient.ExportAsync(guidString, exportDir, fileName, bits);
+                return filePath;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+        public async Task DownloadAudioAsync(Guid id, int bits = 32)
+        {
+            try
+            {
+                string guidString = id.ToString();
+                await this.internalClient.DownloadAsync(guidString, bits);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
+        }
 
 
         // ImageController
@@ -42,6 +264,10 @@ namespace SharpAI.Client
             {
                 var resp = await this.internalClient.ListAsync();
                 return resp?.ToList();
+            }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                return [];
             }
             catch (ApiException)
             {
@@ -53,21 +279,8 @@ namespace SharpAI.Client
         {
             try
             {
-                await using var contentStream = fParam.Data;
-                using var content = new MultipartFormDataContent();
-                var streamContent = new StreamContent(contentStream);
-                if (!string.IsNullOrWhiteSpace(fParam.ContentType))
-                {
-                    streamContent.Headers.ContentType = new MediaTypeHeaderValue(fParam.ContentType);
-                }
-                content.Add(streamContent, "file", fParam.FileName);
-
-                var resp = await this.httpClient.PostAsync("api/Image/upload-file", content);
-                if (!resp.IsSuccessStatusCode)
-                {
-                    return null;
-                }
-                return await resp.Content.ReadFromJsonAsync<ImageObjInfo>();
+                var info = await this.internalClient.UploadFileAsync(fParam);
+                return info;
             }
             catch (Exception)
             {
@@ -79,13 +292,8 @@ namespace SharpAI.Client
         {
             try
             {
-                var primary = await this.httpClient.DeleteAsync($"api/Image/{id}");
-                if (primary.IsSuccessStatusCode)
-                {
-                    return true;
-                }
-                var fallback = await this.httpClient.DeleteAsync($"api/Image/delete?id={id}");
-                return fallback.IsSuccessStatusCode;
+                await this.internalClient.Delete2Async(id);
+                return true;
             }
             catch (Exception)
             {
@@ -110,7 +318,7 @@ namespace SharpAI.Client
         {
             try
             {
-                return await this.internalClient.DataAsync(id);
+                return await this.internalClient.Data2Async(id);
             }
             catch (Exception)
             {
@@ -126,6 +334,10 @@ namespace SharpAI.Client
             {
                 return await this.internalClient.StatusAsync(ct);
             }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                return null;
+            }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
@@ -138,6 +350,11 @@ namespace SharpAI.Client
             try
             {
                 return await this.internalClient.List2Async();
+            }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                Console.WriteLine(" INFO: No models files found...");
+                return [];
             }
             catch (Exception ex)
             {
@@ -195,6 +412,10 @@ namespace SharpAI.Client
                 var response = await this.internalClient.CurrentAsync();
                 return response;
             }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                return null;
+            }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
@@ -202,12 +423,16 @@ namespace SharpAI.Client
             }
         }
 
-        public async Task<ICollection<LlamaContextData>?> GetAllContextsAsync()
+        public async Task<ICollection<LlamaContextData>?> GetAllContextsAsync(bool orderByLatest = true)
         {
             try
             {
-                var response = await this.internalClient.List3Async();
+                var response = await this.internalClient.List3Async(orderByLatest);
                 return response;
+            }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                return [];
             }
             catch (Exception ex)
             {
@@ -258,17 +483,63 @@ namespace SharpAI.Client
             }
         }
 
+        public async Task<string?> RenameContextAsync(string? newNameOrPath = null, string? newName = null)
+        {
+            try
+            {
+                var ok = await this.internalClient.RenameAsync(newNameOrPath, newName);
+                return ok;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
         public async Task<bool> DeleteContextAsync(string contextNameOrPath)
         {
             try
             {
-                var ok = await this.internalClient.Delete2Async(contextNameOrPath);
+                var ok = await this.internalClient.Delete3Async(contextNameOrPath);
                 return ok ?? false;
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
                 return false;
+            }
+        }
+
+        public async Task<string?> GetSystemPromptAsync()
+        {
+            try
+            {
+                var response = await this.internalClient.GetAsync();
+                return response;
+            }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                return "";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+        public async Task<string?> SetSystemPromptAsync(string newPrompt, bool updateCurrentContext = true)
+        {
+            try
+            {
+                var response = await this.internalClient.SetAsync(updateCurrentContext, newPrompt);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
             }
         }
 
@@ -288,11 +559,11 @@ namespace SharpAI.Client
             }
         }
 
-        public async Task<ICollection<string>?> GenerateSimpleAsync(string prompt, int maxTokens = 1024, float temperature = 0.7f, float topP = 0.95f, CancellationToken ct = default)
+        public async Task<ICollection<string>?> GenerateSimpleAsync(string prompt, int maxTokens = 1024, float temperature = 0.7f, float topP = 0.95f, bool useSystemPrompt = true, CancellationToken ct = default)
         {
             try
             {
-                var response = await this.internalClient.SimpleAllAsync(prompt, maxTokens, temperature, topP, ct);
+                var response = await this.internalClient.SimpleAllAsync(prompt, maxTokens, temperature, topP, useSystemPrompt, ct);
                 return response;
             }
             catch (Exception ex)
@@ -316,11 +587,11 @@ namespace SharpAI.Client
             }
         }
 
-        public async Task<string?> GenerateTextSimpleAsync(string prompt, int maxTokens = 1024, float temperature = 0.7f, float topP = 0.95f, CancellationToken ct = default)
+        public async Task<string?> GenerateTextSimpleAsync(string prompt, int maxTokens = 1024, float temperature = 0.7f, float topP = 0.95f, bool useSystemPrompt = true, CancellationToken ct = default)
         {
             try
             {
-                var response = await this.internalClient.SimplePOST2Async(prompt, maxTokens, temperature, topP, ct);
+                var response = await this.internalClient.SimplePOST2Async(prompt, maxTokens, temperature, topP, useSystemPrompt, ct);
                 return response;
             }
             catch (Exception ex)
@@ -368,9 +639,10 @@ namespace SharpAI.Client
             }
         }
 
-        public async IAsyncEnumerable<string> GenerateStreamSimpleAsync(string prompt, int maxTokens = 1024, float temperature = 0.7f, float topP = 0.95f, [EnumeratorCancellation] CancellationToken ct = default)
+        public async IAsyncEnumerable<string> GenerateStreamSimpleAsync(string prompt, int maxTokens = 1024, float temperature = 0.7f, float topP = 0.95f, bool useSystemPrompt = true, [EnumeratorCancellation] CancellationToken ct = default)
         {
-            var url = $"generate/stream/simple?prompt={Uri.EscapeDataString(prompt)}&maxTokens={maxTokens}&temperature={temperature.ToString(CultureInfo.InvariantCulture)}&topP={topP.ToString(CultureInfo.InvariantCulture)}";
+            var url = $"generate/simple?prompt={Uri.EscapeDataString(prompt)}&maxTokens={maxTokens}&temperature={temperature.ToString(CultureInfo.InvariantCulture)}&topP={topP.ToString(CultureInfo.InvariantCulture)}&useSystemPrompt={useSystemPrompt}";
+
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
 
@@ -407,6 +679,7 @@ namespace SharpAI.Client
             await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             using var reader = new StreamReader(stream);
             var dataBuilder = new StringBuilder();
+
 
             string? line;
             while ((line = await reader.ReadLineAsync(ct).ConfigureAwait(false)) != null)
@@ -465,6 +738,10 @@ namespace SharpAI.Client
                 var response = await this.internalClient.CudaAsync();
                 return response;
             }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                return "";
+            }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
@@ -472,5 +749,187 @@ namespace SharpAI.Client
             }
         }
 
+
+        // Whisper (ONNX)
+        public async Task<WhisperModelInfo?> GetCurrentOnnxWhisperModel()
+        {
+            try
+            {
+                var response = await this.internalClient.OnnxStatusAsync();
+                return response;
+            }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+        public async Task<ICollection<WhisperModelInfo>?> GetWhisperModelsAsync()
+        {
+            try
+            {
+                var response = await this.internalClient.WhisperModelsAsync();
+                return response;
+            }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                return [];
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+        public async Task<bool?> LoadWhisperModelAsync(WhisperModelInfo? whisperModelInfo = null)
+        {
+            try
+            {
+                var result = await this.internalClient.WhisperLoadAsync(whisperModelInfo);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+        public async Task<bool?> DisposeWhisperAsync()
+        {
+            try
+            {
+                var result = await this.internalClient.WhisperDisposeAsync();
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+        public async Task<double?> GetWhisperTaskProgressAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                using var response = await this.httpClient.GetAsync("whisper-progress", ct).ConfigureAwait(false);
+                if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+                {
+                    return null;
+                }
+
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadFromJsonAsync<double?>(cancellationToken: ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+        public async Task<string?> RunWhisperAsync(string audioId, string? language = null, bool transcribe = false, bool useTimestamps = false, double chunkDuration = 10, CancellationToken ct = default)
+        {
+            try
+            {
+                var result = await this.internalClient.WhisperRunAsync(
+                    audioId,
+                    language,
+                    transcribe,
+                    useTimestamps,
+                    chunkDuration,
+                    null,  // isCancellationRequested
+                    null,  // canBeCanceled
+                    IntPtr.Zero,  // waitHandle_Handle
+                    null,  // waitHandle_SafeWaitHandle_IsInvalid
+                    null,  // waitHandle_SafeWaitHandle_IsClosed
+                    ct);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+            finally
+            {
+                this.CtsWhisper = null;
+            }
+        }
+
+        public async IAsyncEnumerable<string> RunWhisperStreamAsync(string audioId, string? language = null, bool transcribe = false, bool useTimestamps = false, bool useOverlap = true, double chunkDuration = 20, [EnumeratorCancellation] CancellationToken ct = default)
+        {
+            var url = new StringBuilder("whisper-run-stream?audioId=")
+                .Append(Uri.EscapeDataString(audioId ?? string.Empty))
+                .Append("&language=")
+                .Append(Uri.EscapeDataString(language ?? string.Empty))
+                .Append("&transcribe=")
+                .Append(transcribe.ToString())
+                .Append("&useTimestamps=")
+                .Append(useTimestamps.ToString())
+                .Append("&useOverlap=")
+                .Append(useOverlap.ToString())
+                .Append("&chunkDuration=")
+                .Append(chunkDuration.ToString())
+                .ToString();
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = new StringContent(string.Empty, Encoding.UTF8, "text/plain")
+            };
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+
+            HttpResponseMessage? response = null;
+            var failed = false;
+            try
+            {
+                response = await this.httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                response?.Dispose();
+                failed = true;
+            }
+
+            if (failed || response == null)
+            {
+                yield break;
+            }
+
+            using (response)
+            {
+                await foreach (var item in ReadSseAsync(response, ct).ConfigureAwait(false))
+                {
+                    yield return item;
+                }
+            }
+        }
+
+        public async Task<bool?> CancelWhisperAsync()
+        {
+            try
+            {
+                if (this.CtsWhisper != null)
+                {
+                    this.CtsWhisper.Cancel();
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
     }
 }

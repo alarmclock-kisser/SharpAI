@@ -58,12 +58,13 @@ namespace SharpAI.WebApp
 
             builder.Services.AddRazorPages();
             builder.Services.AddServerSideBlazor();
-            // alternativ mindestens:
             builder.Services.AddSignalR();
             builder.Services.AddScoped<ChatViewModel>();
             builder.Services.AddScoped<ModelViewModel>();
             builder.Services.AddScoped<ContextViewModel>();
             builder.Services.AddScoped<ImageViewModel>();
+            builder.Services.AddScoped<AudioViewModel>();
+            builder.Services.AddScoped<WhisperViewModel>();
 
             var app = builder.Build();
 

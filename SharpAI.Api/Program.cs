@@ -7,6 +7,10 @@ namespace SharpAI.Api
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            // Read appsettings configuration as Appsettings DTO
+            var appsettingsSection = builder.Configuration.GetSection("Appsettings");
+            var appsettings = appsettingsSection.Get<SharpAI.Shared.Appsettings>() ?? new SharpAI.Shared.Appsettings();
+
             // CORS policy
             const string CorsPolicy = "AllowApi";
             builder.Services.AddCors(options =>
@@ -22,10 +26,15 @@ namespace SharpAI.Api
             });
 
             // Add services to the container.
-            builder.Services.AddSingleton<SharpAI.Runtime.LlamaService>();
-            builder.Services.AddSingleton < SharpAI.Core.ImageCollection>();
+            builder.Services.AddSingleton(appsettings);
+            builder.Services.AddSingleton<SharpAI.Runtime.LlamaService>(sp => new Runtime.LlamaService(appsettings.LlamaModelDirectories.ToArray(), appsettings.DefaultLlamaModel, appsettings.PreferredLlamaBackend, appsettings.MaxContextTokens, appsettings.DefaultContext, appsettings.SystemPrompt));
+            builder.Services.AddSingleton<SharpAI.Runtime.OnnxService>(sp => new Runtime.OnnxService(appsettings.WhisperModelDirectories.ToArray()));
+            builder.Services.AddSingleton < SharpAI.Core.ImageCollection>(sp => new SharpAI.Core.ImageCollection(false, appsettings.RessourceImagePaths.ToArray()));
+            builder.Services.AddSingleton<SharpAI.Core.AudioHandling>(sp => new SharpAI.Core.AudioHandling(appsettings.CustomAudioExportDirectory, appsettings.RessourceAudioPaths.ToArray()));
 
             builder.Services.AddControllers();
+            builder.Services.AddSignalR();
+            builder.Services.AddHostedService<SharpAI.Api.Services.LogBroadcastService>();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
@@ -43,26 +52,40 @@ namespace SharpAI.Api
 
             app.UseCors(CorsPolicy);
 
-            // Logging Middleware hinzufügen
+            // Logging Middleware — noisy polling endpoints only go to console, not the UI log
             app.Use(async (context, next) =>
             {
                 try
                 {
                     var req = context.Request;
                     var qs = string.IsNullOrEmpty(req.QueryString.Value) ? string.Empty : req.QueryString.Value;
-                    Console.WriteLine($"[API] Incoming: {req.Method} {req.Path}{qs} from {context.Connection.RemoteIpAddress}");
+                    var path = req.Path.Value ?? "";
+                    // Suppress frequent polling endpoints from UI log (still printed to console)
+                    bool suppress = path.Contains("/status", StringComparison.OrdinalIgnoreCase)
+                                 || path.Contains("/onnx-status", StringComparison.OrdinalIgnoreCase)
+                                 || path.Contains("/loghub", StringComparison.OrdinalIgnoreCase)
+                                 || path.Contains("/log/binding", StringComparison.OrdinalIgnoreCase)
+                                 || path.Contains("/negotiate", StringComparison.OrdinalIgnoreCase);
+                    var incoming = $"[API] Incoming: {req.Method} {path}{qs} from {context.Connection.RemoteIpAddress}";
+                    Console.WriteLine(incoming);
+                    if (!suppress) SharpAI.Core.StaticLogger.Log(incoming);
                     await next();
-                    Console.WriteLine($"[API] Response: {context.Response.StatusCode} for {req.Method} {req.Path}{qs}");
+                    var outgoing = $"[API] Response: {context.Response.StatusCode} for {req.Method} {path}{qs}";
+                    Console.WriteLine(outgoing);
+                    if (!suppress) SharpAI.Core.StaticLogger.Log(outgoing);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[API] Request logging middleware error: {ex}");
+                    var error = $"[API] Request logging middleware error: {ex}";
+                    Console.WriteLine(error);
+                    SharpAI.Core.StaticLogger.Log(error);
                     throw;
                 }
             });
 
             app.UseAuthorization();
             app.MapControllers();
+            app.MapHub<SharpAI.Api.Hubs.LogHub>("/loghub");
 
             app.Run();
         }

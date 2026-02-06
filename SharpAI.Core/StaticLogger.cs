@@ -12,6 +12,8 @@ namespace SharpAI.Core
         public static readonly ConcurrentDictionary<DateTime, string> LogEntries = new ConcurrentDictionary<DateTime, string>();
         public static readonly BindingList<string> LogEntriesBindingList = new BindingList<string>();
 
+        public static event Action<string>? LogAdded;
+
         // UI synchronization context (set from the UI at startup)
         private static SynchronizationContext? UiContext;
 
@@ -39,6 +41,8 @@ namespace SharpAI.Core
                     LogEntriesBindingList.Add(logEntry);
                 }
             }
+
+            LogAdded?.Invoke(logEntry);
         }
 
         public static void Log(Exception ex)

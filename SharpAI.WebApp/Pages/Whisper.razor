@@ -1,0 +1,148 @@
+﻿@page "/whisper"
+@using SharpAI.WebApp.ViewModels
+@using SharpAI.Shared
+@using Radzen
+@using Radzen.Blazor
+
+<RadzenHeading Size="H1" Text="Whisper" />
+
+<RadzenRow Gap="1.5rem">
+    <RadzenColumn Size="12" SizeLG="4">
+        <RadzenCard Variant="Variant.Outlined" Title="Audio Files">
+            <ChildContent>
+                <RadzenStack Gap="0.5rem">
+                    @* Upload handled on the Audio page - remove upload UI from Whisper page *@
+
+                    <RadzenFormField Text="Available audios">
+                        @if (Vm.AudioInfos.Count == 0)
+                        {
+                            <RadzenText Text="No audio files available." TextStyle="TextStyle.Caption" />
+                        }
+                        else
+                        {
+                            <RadzenListBox Data="Vm.AudioInfos"
+                                           TItem="AudioObjInfo"
+                                           TValue="Guid"
+                                           ValueProperty="Id"
+                                           @bind-Value="Vm.SelectedAudioId"
+                                           Style="width: 100%; max-height: 260px;">
+                                <Template Context="audio">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;padding:0.5rem 0.75rem;">
+                                        <div style="flex:1;">
+                                            <span style="font-weight:600;">@audio.Name</span>
+                                            <div style="font-size:0.85rem;color:var(--rz-text-secondary);">@audio.CreatedAt.ToString("g") · @TimeSpan.FromSeconds(audio.DurationInSeconds).ToString()</div>
+                                        </div>
+                                        <div>
+                                            <RadzenButton ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Text="Delete" Click="@(() => Vm.DeleteAsync(audio.Id))" />
+                                        </div>
+                                    </div>
+                                </Template>
+                            </RadzenListBox>
+                        }
+                    </RadzenFormField>
+
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                        <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Refresh" Click="@Vm.RefreshAsync" />
+                    </RadzenStack>
+                </RadzenStack>
+            </ChildContent>
+        </RadzenCard>
+    </RadzenColumn>
+
+    <RadzenColumn Size="12" SizeLG="8">
+        <RadzenCard Variant="Variant.Outlined" Title="Whisper Transcription">
+            <ChildContent>
+                <RadzenStack Gap="0.75rem">
+                    <RadzenFormField Text="Model">
+                        <RadzenDropDown Data="Vm.WhisperModels" TextProperty="ModelName" TValue="WhisperModelInfo" @bind-Value="Vm.SelectedWhisperModel" Disabled="@(Vm.IsInitialized)" Placeholder="Select a Whisper model...">
+                            <Template Context="m">
+                                @m.ModelName (@((m.SizeInMb / 1024.0).ToString("0.00")) GB)
+                            </Template>
+                            <ValueTemplate Context="m">
+                                @m.ModelName
+                            </ValueTemplate>
+                        </RadzenDropDown>
+                    </RadzenFormField>
+
+                    <RadzenRow Gap="0.5rem">
+                        <RadzenColumn Size="12" SizeMD="6">
+                        <RadzenFormField Text="Language (optional)">
+                                <RadzenDropDown Data="Vm.Languages" TValue="string" @bind-Value="Vm.Language" Style="width:100%" />
+                            </RadzenFormField>
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMD="6">
+                            <RadzenStack Gap="0.5rem" Style="padding-top:0.35rem;">
+                                <RadzenText Text="Options" TextStyle="TextStyle.Subtitle2" />
+                                <RadzenStack Orientation="Orientation.Vertical" Gap="0.5rem">
+                                    <div style="display:flex;align-items:center;gap:0.5rem;">
+                                        <RadzenCheckBox @bind-Value="Vm.Transcribe" />
+                                        <span>Transcribe (prefer spoken language)</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:0.5rem;">
+                                        <RadzenCheckBox @bind-Value="Vm.UseTimestamps" />
+                                        <span>Include timestamps</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:0.5rem;">
+                                        <RadzenCheckBox @bind-Value="Vm.StreamResponse" />
+                                        <span>Stream response</span>
+                                    </div>
+                                    <RadzenFormField Text="Chunk duration (seconds)">
+                                        <RadzenNumeric TValue="double" @bind-Value="Vm.ChunkDuration" Min="1" Step="1" />
+                                    </RadzenFormField>
+                                </RadzenStack>
+                            </RadzenStack>
+                        </RadzenColumn>
+                    </RadzenRow>
+
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                        <RadzenButton Style="@Vm.InitializeButtonStyle"
+                                      Text="@Vm.InitializeButtonText"
+                                      Click="@(Vm.IsInitialized ? (() => Vm.DisposeWhisperAsync()) : (() => Vm.InitializeWhisperAsync()))"
+                                      Disabled="@Vm.InitializeRunning"/>
+
+                        <RadzenButton ButtonStyle="ButtonStyle.Primary"
+                                      Text="@Vm.RunWhisperButtonText"
+                                      Click="@(Vm.WhisperRunning ? (() => Vm.CancelWhisperAsync()) : (() => Vm.RunWhisperAsync()))"
+                                      Disabled="@( !Vm.CanRunWhisper && !Vm.WhisperRunning )" />
+
+                        <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Refresh" Click="@Vm.RefreshAsync" />
+                    </RadzenStack>
+
+                    @if (!string.IsNullOrWhiteSpace(Vm.StatusMessage))
+                    {
+                        <RadzenAlert Severity="AlertSeverity.Info">@Vm.StatusMessage</RadzenAlert>
+                    }
+
+                    @if (Vm.WhisperProgress.HasValue)
+                    {
+                        <RadzenProgressBar Value="@(Vm.WhisperProgress.Value * 100)" ShowValue="true" Style="width: 100%;" />
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(Vm.WhisperOutput))
+                    {
+                        <RadzenFormField Text="Transcription Result">
+                            <div class="rz-text" style="white-space: pre-wrap;">@Vm.WhisperOutput</div>
+                        </RadzenFormField>
+                    }
+                </RadzenStack>
+            </ChildContent>
+        </RadzenCard>
+    </RadzenColumn>
+</RadzenRow>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Vm.NotifyStateChanged = () => InvokeAsync(StateHasChanged);
+    }
+
+    protected override Task OnInitializedAsync()
+    {
+        return Vm.InitializeAsync();
+    }
+
+
+    [Inject]
+    public WhisperViewModel Vm { get; set; } = default!;
+}
+

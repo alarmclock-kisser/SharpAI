@@ -23,7 +23,8 @@ namespace SharpAI.Core
 
 		public string FilePath { get; set; } = string.Empty;
 		public Image<Rgba32>? Img { get; set; } = null;
-		public int Width { get; private set; } = 0;
+		public string? Base64DataCache { get; set; } = null;
+        public int Width { get; private set; } = 0;
 		public int Height { get; private set; } = 0;
 
 		public int Channels => 4;
@@ -205,6 +206,103 @@ namespace SharpAI.Core
         }
 
 
+        public static async Task<ImageObj?> DrawWaveformAsync(AudioObj audioObj, int width = 256, int height = 64, int? samplesPerPixel = null, int offset = 0, string backColorHex = "#FFFFFF", string graphColorHex = "#000000", int? maxWorkers = null)
+        {
+            maxWorkers ??= Environment.ProcessorCount;
+            maxWorkers = Math.Max(1, maxWorkers.Value);
+
+            try
+            {
+                // 1. Initialisierung des Zielbildes
+                ImageObj imageObj = new ImageObj(width, height, backColorHex);
+				if (imageObj.Img == null)
+				{
+					LogException(new Exception("Failed to create ImageObj for waveform."), "Failed to initialize ImageObj for waveform.");
+                    return null;
+				}
+
+                var graphColor = Color.ParseHex(graphColorHex);
+
+                // 2. Berechnung der Parameter
+                // Wir berücksichtigen nur den ersten Channel für die Wellenform-Analyse, 
+                // oder wir mitteln die Channels, falls gewünscht.
+                int channels = audioObj.Channels;
+                int totalSamples = audioObj.Length / channels;
+                int availableSamples = totalSamples - offset;
+
+                if (availableSamples <= 0) return imageObj;
+
+                // Wenn samplesPerPixel nicht gesetzt ist, skalieren wir das Audio passend zur Breite
+                int spp = samplesPerPixel ?? (int)Math.Ceiling((double)availableSamples / width);
+
+                // 3. Parallelisierung vorbereiten
+                // Wir berechnen die Min/Max Werte für jede vertikale Linie im Bild
+                float[] minValues = new float[width];
+                float[] maxValues = new float[width];
+
+                await Task.Run(() =>
+                {
+                    Parallel.For(0, width, new ParallelOptions { MaxDegreeOfParallelism = maxWorkers.Value }, x =>
+                    {
+                        int startSample = offset + (x * spp);
+                        if (startSample >= totalSamples) return;
+
+                        int endSample = Math.Min(startSample + spp, totalSamples);
+                        float min = 0;
+                        float max = 0;
+
+                        for (int s = startSample; s < endSample; s++)
+                        {
+                            // Wir nehmen den Durchschnitt über alle Channels an diesem Sample-Punkt
+                            float sampleSum = 0;
+                            for (int c = 0; c < channels; c++)
+                            {
+                                sampleSum += audioObj.Data[s * channels + c];
+                            }
+                            float value = sampleSum / channels;
+
+                            if (value < min) min = value;
+                            if (value > max) max = value;
+                        }
+
+                        minValues[x] = min;
+                        maxValues[x] = max;
+                    });
+                });
+
+                // 4. Zeichnen auf dem ImageSharp Objekt
+                imageObj.Img.Mutate(ctx =>
+                {
+                    float midY = height / 2f;
+
+                    for (int x = 0; x < width; x++)
+                    {
+                        // Skalierung: Da Float-Samples von -1.0 bis 1.0 gehen, 
+                        // multiplizieren wir mit der halben Höhe.
+                        float yMax = midY - (maxValues[x] * midY);
+                        float yMin = midY - (minValues[x] * midY);
+
+                        // Sicherstellen, dass mindestens ein Pixel gezeichnet wird (für leise Stellen)
+                        if (Math.Abs(yMax - yMin) < 1f)
+                        {
+                            yMin = midY + 0.5f;
+                            yMax = midY - 0.5f;
+                        }
+
+                        // Zeichne vertikale Linie für diesen Pixel-Slot
+                        ctx.DrawLine(graphColor, 1f, new PointF(x, yMin), new PointF(x, yMax));
+                    }
+                });
+
+                return imageObj;
+            }
+            catch (Exception ex)
+            {
+                LogException(ex, "Failed to draw waveform.");
+                return null;
+            }
+        }
+
         public ImageObj(byte[] imageData, int width, int height)
 		{
 			try
@@ -343,16 +441,23 @@ namespace SharpAI.Core
 			}
 		}
 
-		public async Task<string?> GetBase64ImageDataAsync(bool nullImg = true)
+		public async Task<string?> GetBase64ImageDataAsync(bool nullImg = true, bool cacheData = false)
 		{
 			try
 			{
-				var imageData = await this.GetImageDataAsync(nullImg);
+                var imageData = await this.GetImageDataAsync(nullImg);
 				if (imageData.Length == 0)
 				{
 					return null;
 				}
-				return Convert.ToBase64String(imageData);
+
+                string base64 = Convert.ToBase64String(imageData);
+				if (cacheData)
+				{
+					this.Base64DataCache = base64;
+                }
+
+				return base64;
 			}
 			catch (Exception ex)
 			{

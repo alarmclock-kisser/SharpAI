@@ -11,6 +11,8 @@
     <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.25.0" />
     <PackageReference Include="LLamaSharp.Backend.Cuda12" Version="0.25.0" />
     <PackageReference Include="LLamaSharp.Backend.Cuda12.Windows" Version="0.25.0" />
+    <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.24.1" />
   </ItemGroup>
 
   <ItemGroup>

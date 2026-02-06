@@ -23,7 +23,7 @@ namespace SharpAI.Shared
 		}
 
 
-		public ImageObjData(Guid id, string data, string mimeType)
+		public ImageObjData(Guid id, string data, string mimeType = "image/png")
 		{
 			this.Id = id;
 			this.Data = data;
