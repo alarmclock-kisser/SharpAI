@@ -34,7 +34,7 @@ namespace SharpAI.Api.Controllers
                 }
 
                 // Return JSON serialized string to ensure the generated client can deserialize it
-                return this.Ok(Path.GetFileName(this.Whisper.CurrentModelFile));
+                return new JsonResult(Path.GetFileName(this.Whisper.CurrentModelFile));
             }
             catch (Exception ex)
             {

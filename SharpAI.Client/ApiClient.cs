@@ -1070,8 +1070,19 @@ namespace SharpAI.Client
             }
         }
 
-
-
+        public async Task<bool> DisposeWhisperNetAsync()
+        {
+            try
+            {
+                var result = await this.internalClient.WhisperDisposeAsync();
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return false;
+            }
+        }
 
     }
 }

@@ -72,7 +72,7 @@ namespace SharpAI.WebApp.ViewModels
             }
 
             var status = await this.api.GetWhisperNetStatusAsync();
-            if (string.IsNullOrWhiteSpace(status) || status.Contains("not initialized", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(status))
             {
                 this.IsInitialized = false;
             }
@@ -124,8 +124,8 @@ namespace SharpAI.WebApp.ViewModels
         public async Task DisposeWhisperAsync()
         {
             this.StatusMessage = null;
-            var result = await this.api.DisposeOnnxAsync();
-            if (result.HasValue && result.Value)
+            var result = await this.api.DisposeWhisperNetAsync();
+            if (result)
             {
                 this.StatusMessage = "Whisper disposed.";
                 this.IsInitialized = false;

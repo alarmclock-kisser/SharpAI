@@ -163,6 +163,7 @@ namespace SharpAI.Runtime
         public void Dispose()
         {
             this.Factory?.Dispose();
+            this.Factory = null;
             GC.SuppressFinalize(this);
         }
     }
