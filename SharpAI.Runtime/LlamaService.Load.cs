@@ -31,7 +31,7 @@ namespace SharpAI.Runtime
 
 
 
-        public async Task<LlamaModelFile?> LoadModelAsync(LlamaModelLoadRequest loadRequest, bool fuzzyMatch = false, bool tryMultimodal = true, IProgress<double>? progress = null, CancellationToken ct = default)
+        public async Task<LlamaModelFile?> LoadModelAsync(LlamaModelLoadRequest loadRequest, bool fuzzyMatch = false, IProgress<double>? progress = null, CancellationToken ct = default)
         {
             // If a model is already loaded, unload it first
             if (loadRequest == null || loadRequest.ModelFile == null)
@@ -103,7 +103,7 @@ namespace SharpAI.Runtime
 
             // If multimodal was requested and no projector path was provided,
             // try to discover a suitable .mmproj file in the same directory as the model.
-            if (tryMultimodal && string.IsNullOrEmpty(loadRequest.MMProjPath))
+            if (loadRequest.TryMultimodal && string.IsNullOrEmpty(loadRequest.MMProjPath))
             {
                 try
                 {

@@ -10,8 +10,18 @@
             <RadzenCheckBox @bind-Value="wrapText" TValue="bool" Name="wrapToggle" />
             <RadzenText Text="Wrap" Style="font-size:0.85rem;color:#111" />
         </RadzenStack>
+		<RadzenButton ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Text="Copy" Click="CopyLogToClipboard" />
         <RadzenButton ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Text="Refresh" Click="Refresh" Style="margin-left:auto" />
     </RadzenStack>
+
+    @if (showCopyNotification)
+    {
+        <div style="position:relative">
+            <div style="position:absolute;right:8px;top:40px;background:rgba(0,0,0,0.75);color:#fff;padding:8px 12px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.2);font-size:0.85rem;z-index:2000;">
+                @copyNotificationText
+            </div>
+        </div>
+    }
 
     <div id="sidebar-log-entries" class="log-entries" style="flex:1;display:block;overflow-y:auto;background:transparent;font-size:0.8rem;color:#111;padding-right:0.5rem;padding-bottom:50px;min-height:0;box-sizing:border-box;max-height:calc(100vh - 106px);">
         @if (entries == null)
@@ -26,7 +36,14 @@
         {
             foreach (var e in entries)
             {
-                <div style="padding:0.25rem 0;border-bottom:1px solid rgba(0,0,0,0.06);white-space:@(wrapText ? "normal" : "pre");word-wrap:break-word;color:#111">@e</div>
+                if (e.Contains("err", StringComparison.OrdinalIgnoreCase) || e.Contains("exception", StringComparison.OrdinalIgnoreCase))
+                {
+                    <div style="padding:0.25rem 0;border-bottom:1px solid rgba(0,0,0,0.06);white-space:@(wrapText ? "normal" : "pre");word-wrap:break-word;color:#b00020;font-weight:600">@e</div>
+                }
+                else
+                {
+                    <div style="padding:0.25rem 0;border-bottom:1px solid rgba(0,0,0,0.06);white-space:@(wrapText ? "normal" : "pre");word-wrap:break-word;color:#111">@e</div>
+                }
             }
         }
     </div>
@@ -38,6 +55,8 @@
     private string source = "binding";
     private HubConnection? hubConnection;
     private bool scrollToBottomPending;
+    private bool showCopyNotification = false;
+    private string copyNotificationText = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -132,6 +151,26 @@
     private async Task Refresh()
     {
         await LoadLogsAsync();
+    }
+
+    private async Task CopyLogToClipboard()
+    {
+        var logLines = await this.Api.GetLogsBindingAsync();
+        if (logLines != null && logLines.Count > 0)
+        {
+            string concattedLogs = string.Join(Environment.NewLine, logLines);
+            // Use helper in wwwroot/clipboard.js which handles navigator.clipboard with a fallback
+            await JS.InvokeVoidAsync("clipboardWriteText", concattedLogs);
+            // show a short notification
+            copyNotificationText = $"{logLines.Count} log lines copied to Clipboard.";
+            showCopyNotification = true;
+            StateHasChanged();
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(3000);
+                await InvokeAsync(() => { showCopyNotification = false; StateHasChanged(); });
+            });
+        }
     }
 
     

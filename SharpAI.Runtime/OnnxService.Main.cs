@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.ML.OnnxRuntime;
+using Microsoft.ML.Tokenizers;
 using SharpAI.Core;
 using SharpAI.Shared;
 
@@ -13,6 +14,9 @@ namespace SharpAI.Runtime
     {
         private InferenceSession? _encoderSession;
         private InferenceSession? _decoderSession;
+        private Tokenizer? _tokenizer;
+        // Cache shapes for decoder KV-cache inputs (determined on initialization)
+        private Dictionary<string, int[]>? _decoderCacheShapes;
 
         public bool Initialized => this._encoderSession != null && this._decoderSession != null;
 
@@ -24,6 +28,9 @@ namespace SharpAI.Runtime
 
         // Das aktuell geladene Modell
         public WhisperModelInfo? CurrentModel { get; private set; }
+
+        public WhisperTokenMap? TokenMap { get; private set; }
+
 
         public bool IsInitialized => this._encoderSession != null && this._decoderSession != null;
 
@@ -95,7 +102,7 @@ namespace SharpAI.Runtime
                 if (File.Exists(path)) return path;
             }
 
-            // Fallback: suche nach Dateien, deren Name (ohne Pfad) mit einem Kandidaten beginnt (z.B. "tokenizer_config" ohne .json)
+            // Fallback: suche nach Dateien, deren Name (ohne Pfad) mit einem Kandidaten beginnt
             var files = Directory.GetFiles(directory);
             foreach (var candidate in candidates)
             {
@@ -107,14 +114,11 @@ namespace SharpAI.Runtime
             return null;
         }
 
-        public async Task<bool> InitializeAsync(WhisperModelInfo? model = null)
+        public async Task<bool> InitializeAsync(WhisperModelInfo? model = null, int useCudaDevice = -1)
         {
             if (model == null || !Directory.Exists(model.RootPath) || !File.Exists(model.EncoderPath))
             {
-                if (this.AvailableModels.Count >= 1)
-                {
-                    model = this.AvailableModels.First();
-                }
+                if (this.AvailableModels.Count >= 1) model = this.AvailableModels.First();
                 else
                 {
                     await StaticLogger.LogAsync("No whisper model available.");
@@ -124,21 +128,129 @@ namespace SharpAI.Runtime
 
             try
             {
-                // Falls bereits ein Modell geladen ist, Ressourcen frei machen
                 this.Dispose();
 
                 var options = new SessionOptions();
-                options.AppendExecutionProvider_CPU();
-                options.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL;
+                if (useCudaDevice >= 0)
+                {
+                    try
+                    {
+                        options.AppendExecutionProvider_CUDA(useCudaDevice);
+                        StaticLogger.Log("CUDA Execution Provider enabled.");
+                    }
+                    catch (Exception ex)
+                    {
+                        await StaticLogger.LogAsync($"CUDA initialization failed: {ex.Message}");
+                        await StaticLogger.LogAsync("CUDA not available. Falling back to CPU.");
+                        options.AppendExecutionProvider_CPU();
+                    }
+                }
+
+                else
+                {
+                    await StaticLogger.LogAsync("Using ONNX on CPU.");
+                    options.AppendExecutionProvider_CPU();
+                }
+                options.GraphOptimizationLevel = useCudaDevice >= 0 ? GraphOptimizationLevel.ORT_ENABLE_EXTENDED : GraphOptimizationLevel.ORT_ENABLE_ALL;
 
                 await Task.Run(() =>
                 {
+                    // 0. Configure feature extractor from model's preprocessor config (if available)
+                    try
+                    {
+                        WhisperFeatureExtractor.ConfigureFromPreprocessor(model.PreprocessorConfigPath);
+                        StaticLogger.Log("WhisperFeatureExtractor configured from preprocessor config.");
+                    }
+                    catch (Exception cfgEx)
+                    {
+                        StaticLogger.Log($"Warning: Failed to configure WhisperFeatureExtractor from preprocessor: {cfgEx.Message}");
+                        // Weiter mit Defaults
+                    }
+
+                    // 1. Sessions laden
                     this._encoderSession = new InferenceSession(model.EncoderPath, options);
                     this._decoderSession = new InferenceSession(model.DecoderPath, options);
+
+                    // Determine decoder KV-cache shapes once during initialization
+                    try
+                    {
+                        var cacheInputNames = this._decoderSession.InputMetadata.Keys.Where(k => k.StartsWith("past_key_values")).ToList();
+                        var shapes = new Dictionary<string, int[]>();
+
+                        foreach (var name in cacheInputNames)
+                        {
+                            int batch = 1;
+                            int numHeads = -1;
+                            int headDim = -1;
+
+                            if (this._decoderSession.InputMetadata.TryGetValue(name, out var im) && im.Dimensions != null && im.Dimensions.Length >= 4)
+                            {
+                                batch = im.Dimensions[0] > 0 ? im.Dimensions[0] : batch;
+                                numHeads = im.Dimensions[1] > 0 ? im.Dimensions[1] : numHeads;
+                                headDim = im.Dimensions[3] > 0 ? im.Dimensions[3] : headDim;
+                            }
+
+                            var presentName = name.Replace("past_key_values", "present");
+                            if (this._decoderSession.OutputMetadata != null && this._decoderSession.OutputMetadata.TryGetValue(presentName, out var om) && om.Dimensions != null && om.Dimensions.Length >= 4)
+                            {
+                                numHeads = numHeads > 0 ? numHeads : (om.Dimensions[1] > 0 ? om.Dimensions[1] : numHeads);
+                                headDim = headDim > 0 ? headDim : (om.Dimensions[3] > 0 ? om.Dimensions[3] : headDim);
+                                batch = batch > 0 ? batch : (om.Dimensions[0] > 0 ? om.Dimensions[0] : batch);
+                            }
+
+                            if (numHeads > 0 && headDim > 0)
+                            {
+                                shapes[name] = new[] { batch, numHeads, 0, headDim };
+                            }
+                            else
+                            {
+                                // Leave placeholder; will be inferred on first decoder run
+                                shapes[name] = new[] { batch, -1, 0, -1 };
+                                StaticLogger.Log($"Decoder cache shape for '{name}' could not be fully determined at initialize time. Will infer on first run.");
+                            }
+                        }
+
+                        this._decoderCacheShapes = shapes;
+                    }
+                    catch (Exception ex)
+                    {
+                        StaticLogger.Log($"Warning: Failed to precompute decoder cache shapes: {ex.Message}");
+                        this._decoderCacheShapes = null;
+                    }
+
+                    // --- Synchronisiere FeatureExtractor mit Modell-Shape ---
+                    if (this._encoderSession.InputMetadata.TryGetValue("input_features", out var meta) && meta.Dimensions != null && meta.Dimensions.Length >= 3)
+                    {
+                        int modelNMels = meta.Dimensions[1];
+                        int modelNFrames = meta.Dimensions[2];
+
+                        // Nur setzen wenn Model konkrete positive Werte liefert (nicht -1 oder 0)
+                        WhisperFeatureExtractor.SetParameters(
+                            nMels: modelNMels > 0 ? modelNMels : (int?)null,
+                            nFrames: modelNFrames > 0 ? modelNFrames : (int?)null
+                        );
+
+                        StaticLogger.Log($"WhisperFeatureExtractor parameters set from encoder metadata: n_mels={WhisperFeatureExtractor.NMels}, n_frames={WhisperFeatureExtractor.NFrames}");
+                    }
+
+                    // 2. Tokenizer korrekt laden (Fix für "Tokenizer is abstract")
+                    if (File.Exists(model.TokenizerPath))
+                    {
+                        if (string.IsNullOrEmpty(model.VocabPath) || string.IsNullOrEmpty(model.MergesPath))
+                        {
+                            throw new FileNotFoundException("Required tokenizer files are missing.");
+                        }
+
+                        // Die Methode Create parst tokenizer.json automatisch
+                        this._tokenizer = BpeTokenizer.Create(model.VocabPath, model.MergesPath);
+
+                        // 3. IDs dynamisch auslesen (aus generation_config.json + vocab.json)
+                        this.TokenMap = new WhisperTokenMap(this._tokenizer, model.GenerationConfigPath, model.VocabPath);
+                    }
                 });
 
                 this.CurrentModel = model;
-                StaticLogger.Log($"Whisper ONNX Model '{model.Name}' loaded successfully.");
+                StaticLogger.Log($"Whisper Model '{model.Name}' initialized. SOT Token ID: {this.TokenMap?.Sot}");
                 return true;
             }
             catch (Exception ex)
@@ -169,6 +281,7 @@ namespace SharpAI.Runtime
             this._decoderSession?.Dispose();
             this._decoderSession = null;
             this.CurrentModel = null;
+            this.TokenMap = null;
 
             if (!this.IsInitialized)
             {
@@ -185,6 +298,126 @@ namespace SharpAI.Runtime
             this._encoderSession = null;
             this._decoderSession = null;
             this.CurrentModel = null;
+            GC.SuppressFinalize(this);
+        }
+    }
+
+    // Hilfsklasse zum Speichern der dynamischen IDs
+    public class WhisperTokenMap
+    {
+        public int Sot { get; }             // <|startoftranscript|>
+        public int Eot { get; }             // <|endoftext|>
+        public int Translate { get; }       // <|translate|>
+        public int Transcribe { get; }      // <|transcribe|>
+        public int NoTimestamps { get; }    // <|notimestamps|>
+        public int English { get; }         // <|en|>
+
+        // Vocab lookup for special tokens (token string -> id)
+        private readonly Dictionary<string, int> _vocabLookup = new();
+        private readonly Tokenizer _tokenizer;
+
+        public WhisperTokenMap(Tokenizer tokenizer, string? generationConfigPath = null, string? vocabPath = null)
+        {
+            _tokenizer = tokenizer;
+
+            // Build vocab lookup from vocab.json for reliable special token resolution
+            if (!string.IsNullOrEmpty(vocabPath) && File.Exists(vocabPath))
+            {
+                try
+                {
+                    var vocabText = File.ReadAllText(vocabPath);
+                    using var doc = System.Text.Json.JsonDocument.Parse(vocabText);
+                    foreach (var prop in doc.RootElement.EnumerateObject())
+                    {
+                        if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.Number)
+                            _vocabLookup[prop.Name] = prop.Value.GetInt32();
+                    }
+                    StaticLogger.Log($"WhisperTokenMap: loaded {_vocabLookup.Count} entries from vocab.json");
+                }
+                catch (Exception ex)
+                {
+                    StaticLogger.Log($"WhisperTokenMap: failed to parse vocab.json: {ex.Message}");
+                }
+            }
+
+            // Try to read decoder_start_token_id / eos_token_id from generation_config.json
+            int genSot = -1, genEot = -1;
+            if (!string.IsNullOrEmpty(generationConfigPath) && File.Exists(generationConfigPath))
+            {
+                try
+                {
+                    var genText = File.ReadAllText(generationConfigPath);
+                    using var doc = System.Text.Json.JsonDocument.Parse(genText);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("decoder_start_token_id", out var dstProp) && dstProp.ValueKind == System.Text.Json.JsonValueKind.Number)
+                        genSot = dstProp.GetInt32();
+                    if (root.TryGetProperty("eos_token_id", out var eosProp) && eosProp.ValueKind == System.Text.Json.JsonValueKind.Number)
+                        genEot = eosProp.GetInt32();
+                    StaticLogger.Log($"WhisperTokenMap: generation_config decoder_start={genSot}, eos={genEot}");
+                }
+                catch (Exception ex)
+                {
+                    StaticLogger.Log($"WhisperTokenMap: failed to parse generation_config.json: {ex.Message}");
+                }
+            }
+
+            Sot = genSot > 0 ? genSot : GetSpecialTokenId("<|startoftranscript|>", 50258);
+            Eot = genEot > 0 ? genEot : GetSpecialTokenId("<|endoftext|>", 50257);
+            Translate = GetSpecialTokenId("<|translate|>", 50358);
+            Transcribe = GetSpecialTokenId("<|transcribe|>", 50359);
+            NoTimestamps = GetSpecialTokenId("<|notimestamps|>", 50363);
+            English = GetSpecialTokenId("<|en|>", 50259);
+
+            StaticLogger.Log($"WhisperTokenMap resolved: SOT={Sot}, EOT={Eot}, Transcribe={Transcribe}, Translate={Translate}, NoTimestamps={NoTimestamps}, En={English}");
+        }
+
+        private int GetSpecialTokenId(string text, int fallback)
+        {
+            // 1. Try vocab.json lookup (most reliable)
+            if (_vocabLookup.TryGetValue(text, out int vocabId))
+                return vocabId;
+
+            // 2. Try tokenizer encode (works if tokenizer knows special tokens)
+            try
+            {
+                var ids = _tokenizer.EncodeToIds(text);
+                if (ids.Count == 1) return ids[0];
+            }
+            catch { }
+
+            // 3. Fallback for known Whisper offsets
+            StaticLogger.Log($"Warning: Special token '{text}' not found in vocab or tokenizer. Using fallback: {fallback}");
+            return fallback;
+        }
+
+        public int GetLanguageId(string langCode)
+        {
+            string token = $"<|{langCode.ToLower()}|>";
+
+            // Try vocab lookup first
+            if (_vocabLookup.TryGetValue(token, out int id))
+                return id;
+
+            try
+            {
+                var ids = _tokenizer.EncodeToIds(token);
+                if (ids.Count == 1) return ids[0];
+            }
+            catch { }
+
+            return English;
+        }
+
+        public bool HasToken(string token)
+        {
+            if (string.IsNullOrEmpty(token)) return false;
+            if (_vocabLookup.ContainsKey(token)) return true;
+            try
+            {
+                var ids = _tokenizer.EncodeToIds(token);
+                return ids.Count == 1;
+            }
+            catch { return false; }
         }
     }
 }

@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SharpAI.Online\SharpAI.Online.csproj" />
     <ProjectReference Include="..\SharpAI.Runtime\SharpAI.Runtime.csproj" />
   </ItemGroup>
 

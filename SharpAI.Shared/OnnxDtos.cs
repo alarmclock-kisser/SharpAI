@@ -19,6 +19,9 @@ namespace SharpAI.Shared
         public string ConfigPath { get; set; }
         public string GenerationConfigPath { get; set; }
 
+        public string? VocabPath => Path.Exists(Path.Combine(this.RootPath, "vocab.json")) ? Path.GetFullPath(Path.Combine(this.RootPath, "vocab.json")) : null;
+        public string? MergesPath => Path.Exists(Path.Combine(this.RootPath, "merges.txt")) ? Path.GetFullPath(Path.Combine(this.RootPath, "merges.txt")) : null;
+
         public WhisperModelInfo(string name, string rootPath, string encoderPath, string decoderPath, string tokenizerPath, string preprocessorConfigPath, string configPath, string generationConfigPath)
         {
             this.Name = name;

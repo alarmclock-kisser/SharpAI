@@ -15,11 +15,11 @@ namespace SharpAI.Core
     {
         public static string ExportDirectory { get; set; } = Path.GetFullPath(Environment.GetEnvironmentVariable("SHARPAI_AUDIO_EXPORT_DIR") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), "SharpAI_AudioExports"));
 
-        public readonly BindingList<AudioObj> Audios = new BindingList<AudioObj>();
+        public readonly BindingList<AudioObj> Audios = new();
 
         private CancellationTokenSource? recordingCts;
 
-        public readonly ConcurrentDictionary<Guid, ImageObj> WaveformCache = new ConcurrentDictionary<Guid, ImageObj>();
+        public readonly ConcurrentDictionary<Guid, ImageObj> WaveformCache = new();
 
 
         public AudioObj? this[Guid id] => this.Audios.FirstOrDefault(a => a.Id == id);

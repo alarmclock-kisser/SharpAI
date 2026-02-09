@@ -11,6 +11,7 @@ namespace SharpAI.Shared
 
         public string? DefaultLlamaModel { get; set; }
         public string? DefaultWhistperModel { get; set; }
+        public int WhisperCudaDeviceId { get; set; } = -1;
 
         public string PreferredLlamaBackend { get; set; } = "CPU";
 

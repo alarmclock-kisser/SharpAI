@@ -124,7 +124,7 @@ namespace SharpAI.Core
                     using var ms = new MemoryStream(byteData);
                     var sampleProvider = new RawSourceWaveStream(ms, sourceFormat).ToSampleProvider();
                     var resampler = new WdlResamplingSampleProvider(sampleProvider, targetSampleRate);
-                    
+
                     // Read resampled data
                     var resampledList = new List<float>();
                     float[] buffer = new float[8192];
@@ -144,7 +144,7 @@ namespace SharpAI.Core
                             }
                         }
                     }
-                    
+
                     // Update the AudioObj with resampled data
                     this.Data = resampledList.ToArray();
                     this.SampleRate = targetSampleRate;
@@ -153,7 +153,7 @@ namespace SharpAI.Core
                     {
                         this.BitDepth = targetBitDepth.Value;
                     }
-                    
+
                     return true;
                 });
             }
@@ -185,7 +185,7 @@ namespace SharpAI.Core
                     };
                     Buffer.BlockCopy(this.Data, 0, byteData, 0, byteData.Length);
                     provider.AddSamples(byteData, 0, byteData.Length);
-                    
+
                     var sampleProvider = provider.ToSampleProvider();
 
 
@@ -232,7 +232,7 @@ namespace SharpAI.Core
 
                     this.Data = rechanneledList.ToArray();
                     this.Channels = targetChannels;
-                    
+
                     return true;
                 });
             }

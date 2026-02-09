@@ -142,6 +142,21 @@ namespace SharpAI.Runtime
                     return null;
                 }
             }
+            if (contextNameOrFilePath.StartsWith("/new"))
+            {
+                StaticLogger.Log("Creating and loading new context.");
+                var newContextPath = await this.CreateNewContextAsync(use: true, saveJson: false).ConfigureAwait(false);
+                if (newContextPath != null)
+                {
+                    StaticLogger.Log($"New context created and loaded from '{newContextPath}'.");
+                    return this.CurrentContext;
+                }
+                else
+                {
+                    StaticLogger.Log("Failed to create new context.");
+                    return null;
+                }
+            }
 
             if (string.IsNullOrWhiteSpace(contextNameOrFilePath))
             {

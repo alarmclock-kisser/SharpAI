@@ -19,7 +19,7 @@ namespace SharpAI.Shared
     public class LmStudioModelLoadRequest
     {
         public LmStudioModel Model { get; set; }
-        
+
 
 
     }

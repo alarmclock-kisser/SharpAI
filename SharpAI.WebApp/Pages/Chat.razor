@@ -8,6 +8,27 @@
 
 <RadzenHeading Size="H1" Text="Chat" />
 
+<style>
+  .message-wrapper { position: relative; }
+  /* Ensure Radzen card allows visible overflow for the overlay */
+  .message-wrapper .rz-card, .message-wrapper .rz-card-content { overflow: visible !important; }
+  .message-wrapper .translate-overlay {
+    display: none;
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    z-index: 9999;
+    gap: 6px;
+    align-items: center;
+    pointer-events: auto;
+    background: rgba(255,255,255,0.95);
+    padding: 4px 6px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+  .message-wrapper:hover .translate-overlay { display: flex; }
+</style>
+
 <RadzenRow Gap="1.5rem">
     <RadzenColumn Size="12" SizeLG="8">
         <RadzenCard Variant="Variant.Outlined" Title="Conversation">
@@ -17,7 +38,7 @@
                         <RadzenText Text="@($"Model: {(Vm.IsModelLoaded == true ? $"{Vm.LoadedModelName} loaded" : "Not loaded")}")" Style="@($"color: {(Vm.IsModelLoaded == true ? "green" : "red")};")" />
                         <RadzenText Text="@($"Context: {Vm.ContextLabel}")" TextStyle="TextStyle.Caption" />
                     </RadzenStack>
-                    <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Refresh" Size="ButtonSize.Small" Click="@Vm.RefreshAsync" />
+                    <RadzenButton ButtonStyle="ButtonStyle.Light" Text="New Context" Size="ButtonSize.Small" Click="@Vm.RenewAsync" />
                 </RadzenStack>
 
                 <div style="height: 420px; overflow-y: auto;" @ref="messageContainer">
@@ -28,21 +49,37 @@
                     else
                     {
                         <RadzenStack Gap="0.75rem">
-                            @foreach (var message in Vm.Messages)
+                        @foreach (var message in Vm.Messages)
                             {
-                                <RadzenCard Variant="Variant.Outlined">
-                                    <ChildContent>
-                                        <RadzenStack Gap="0.35rem">
-                                            <RadzenText Text="@message.Role" TextStyle="TextStyle.Subtitle2" />
-                                            <div class="rz-text" style="white-space: pre-wrap;">@Vm.RenderMarkdown(message.Content)</div>
-                                            <RadzenText Text="@message.Timestamp.ToLocalTime().ToString("g")" TextStyle="TextStyle.Caption" />
-                                            @if (message.Role != "user" && message.Stats != null && (message.Stats.TokensUsed != 0 || message.Stats.SecondsElapsed != 0))
-                                            {
-                                                <RadzenText Text="@($"Tokens: {message.Stats.TokensUsed} | Elapsed: {message.Stats.SecondsElapsed.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}s | Tokens/s: {message.Stats.TokensPerSecond.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}")" TextStyle="TextStyle.Caption" />
-                                            }
-                                        </RadzenStack>
-                                    </ChildContent>
-                                </RadzenCard>
+                                <div class="message-wrapper">
+                                    <RadzenCard Variant="Variant.Outlined">
+                                        <ChildContent>
+                                            <RadzenStack Gap="0.35rem">
+                                                <RadzenText Text="@message.Role" TextStyle="TextStyle.Subtitle2" />
+                                                @if (string.IsNullOrEmpty(message.Translation))
+                                                {
+                                                    <div class="rz-text" style="white-space: pre-wrap;">@Vm.RenderMarkdown(message.Content)</div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="rz-text" style="white-space: pre-wrap;">@Vm.RenderMarkdown(message.Translation)</div>
+												}
+                                                <RadzenText Text="@message.Timestamp.ToLocalTime().ToString("g")" TextStyle="TextStyle.Caption" />
+                                                @if (message.Role != "user" && message.Stats != null && (message.Stats.TokensUsed != 0 || message.Stats.SecondsElapsed != 0))
+                                                {
+                                                    <RadzenText Text="@($"Tokens: {message.Stats.TokensUsed} | Elapsed: {message.Stats.SecondsElapsed.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}s | Tokens/s: {message.Stats.TokensPerSecond.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}")" TextStyle="TextStyle.Caption" />
+                                                }
+                                            </RadzenStack>
+                                        </ChildContent>
+                                    </RadzenCard>
+                                    <div class="translate-overlay">
+                                        @if (string.IsNullOrEmpty(message.Translation))
+                                        {
+                                            <RadzenDropDown @bind-Value="selectedTranslateLanguage" Data="languages" Style="width:120px;" />
+                                        }
+                                        <RadzenButton Icon="language" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary" Click="async () => await Vm.TranslateMessageAsync(message, selectedTranslateLanguage)" Text="@(string.IsNullOrEmpty(message.Translation) ? "Translate" : "Original")"></RadzenButton>
+                                    </div>
+                                </div>
                             }
                         </RadzenStack>
                     }
@@ -127,6 +164,9 @@
 
 @code {
     private ElementReference messageContainer;
+    private ChatViewModel.ChatMessageView? hoveredMessage;
+    private string selectedTranslateLanguage = "en";
+    private readonly List<string> languages = new() { "en", "de", "fr", "es", "it", "pt", "nl", "ru", "zh-CN", "ja" };
 
     protected override void OnInitialized()
     {
@@ -146,5 +186,26 @@
         }
 
         await Vm.ApplyScrollAsync();
+    }
+
+    private void OnMessageHover(ChatViewModel.ChatMessageView message)
+    {
+        hoveredMessage = message;
+        StateHasChanged();
+    }
+
+    private void OnMessageOut()
+    {
+        hoveredMessage = null;
+        StateHasChanged();
+    }
+
+    private async Task TranslateHoveredMessage()
+    {
+        if (hoveredMessage != null)
+        {
+            await Vm.TranslateMessageAsync(hoveredMessage, selectedTranslateLanguage);
+			StateHasChanged();
+        }
     }
 }

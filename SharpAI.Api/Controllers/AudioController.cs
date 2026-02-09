@@ -20,8 +20,8 @@ namespace SharpAI.Api.Controllers
         {
             try
             {
-                List<AudioObjInfo> infos = this.Audio.Audios.Select(a => new AudioObjInfo(a.Id, a.CreatedAt, a.FilePath, a.Name, a.Duration)).ToList();
-                
+                List<AudioObjInfo> infos = this.Audio.Audios.Select(a => new AudioObjInfo(a.Id, a.CreatedAt, a.FilePath, a.Name, a.Duration, a.SampleRate, a.Channels)).ToList();
+
                 if (includeWaveforms)
                 {
                     foreach (var info in infos)
@@ -81,7 +81,7 @@ namespace SharpAI.Api.Controllers
                 }
 
                 AudioObjData audioData = new(obj.Id, obj.SampleRate, obj.Channels, obj.BitDepth, obj.Duration, base64Data);
-                
+
                 return this.Ok(audioData);
             }
             catch (Exception ex)
@@ -180,7 +180,7 @@ namespace SharpAI.Api.Controllers
                     return this.StatusCode(500, "Failed to import audio file.");
                 }
                 audioObj.Name = Path.GetFileNameWithoutExtension(file.FileName);
-                AudioObjInfo info = new(audioObj.Id, audioObj.CreatedAt, audioObj.FilePath, audioObj.Name, audioObj.Duration);
+                AudioObjInfo info = new(audioObj.Id, audioObj.CreatedAt, audioObj.FilePath, audioObj.Name, audioObj.Duration, audioObj.SampleRate, audioObj.Channels);
                 return this.Ok(info);
             }
             catch (Exception ex)
@@ -217,9 +217,9 @@ namespace SharpAI.Api.Controllers
                 }
 
                 this.Audio.AddAudio(audioObj);
-                
-                AudioObjInfo info = new(audioObj.Id, audioObj.CreatedAt, audioObj.FilePath, audioObj.Name, audioObj.Duration);
-                
+
+                AudioObjInfo info = new(audioObj.Id, audioObj.CreatedAt, audioObj.FilePath, audioObj.Name, audioObj.Duration, audioObj.SampleRate, audioObj.Channels);
+
                 return this.Ok(info);
             }
             catch (Exception ex)
@@ -278,7 +278,7 @@ namespace SharpAI.Api.Controllers
                 {
                     return this.NotFound("AudioObj not found after resampling with Guid: " + guid);
                 }
-                
+
                 string? base64Data = await obj.SerializeAsBase64Async(sampleRate, channels, bitDepth);
                 if (string.IsNullOrEmpty(base64Data))
                 {
@@ -322,7 +322,7 @@ namespace SharpAI.Api.Controllers
                 {
                     return this.NotFound("AudioObj not found after rechannelling with Guid: " + guid);
                 }
-                
+
                 string? base64Data = await obj.SerializeAsBase64Async(sampleRate, channels, bitDepth);
                 if (string.IsNullOrEmpty(base64Data))
                 {

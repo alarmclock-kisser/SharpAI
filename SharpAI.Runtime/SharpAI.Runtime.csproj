@@ -13,6 +13,7 @@
     <PackageReference Include="LLamaSharp.Backend.Cuda12.Windows" Version="0.24.0" />
     <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.24.1" />
+    <PackageReference Include="Microsoft.ML.Tokenizers" Version="2.0.0" />
   </ItemGroup>
 
   <ItemGroup>

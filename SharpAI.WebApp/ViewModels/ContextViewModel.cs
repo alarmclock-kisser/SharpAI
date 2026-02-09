@@ -107,7 +107,7 @@ public sealed class ContextViewModel
     }
 
     public async Task RenameAsync()
-            {
+    {
         this.StatusMessage = null;
         if (string.IsNullOrWhiteSpace(this.SaveName))
         {

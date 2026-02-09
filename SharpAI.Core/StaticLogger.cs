@@ -9,8 +9,8 @@ namespace SharpAI.Core
 {
     public static class StaticLogger
     {
-        public static readonly ConcurrentDictionary<DateTime, string> LogEntries = new ConcurrentDictionary<DateTime, string>();
-        public static readonly BindingList<string> LogEntriesBindingList = new BindingList<string>();
+        public static readonly ConcurrentDictionary<DateTime, string> LogEntries = new();
+        public static readonly BindingList<string> LogEntriesBindingList = new();
 
         public static event Action<string>? LogAdded;
 

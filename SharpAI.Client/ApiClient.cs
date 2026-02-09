@@ -457,6 +457,11 @@ namespace SharpAI.Client
 
         public async Task<LlamaContextData?> LoadContextAsync(string contextNameOrPath)
         {
+            if (string.IsNullOrWhiteSpace(contextNameOrPath) || contextNameOrPath.StartsWith("/") || contextNameOrPath.StartsWith("Temporary"))
+            {
+                return null;
+            }
+
             try
             {
                 var response = await this.internalClient.Load2Async(contextNameOrPath);
@@ -750,6 +755,28 @@ namespace SharpAI.Client
         }
 
 
+
+        // Online (google translate)
+        public async Task<string?> GoogleTranslateAsync(string text, string? originalLanguage = null, string translateLanguage = "en")
+        {
+            try
+            {
+                var response = await this.internalClient.GoogleTranslateAsync(text, originalLanguage, translateLanguage);
+                return response;
+            }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                return "";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+
+
         // Whisper (ONNX)
         public async Task<WhisperModelInfo?> GetCurrentOnnxWhisperModel()
         {
@@ -787,11 +814,11 @@ namespace SharpAI.Client
             }
         }
 
-        public async Task<bool?> LoadWhisperModelAsync(WhisperModelInfo? whisperModelInfo = null)
+        public async Task<bool?> LoadWhisperModelAsync(WhisperModelInfo? whisperModelInfo = null, int cudaDevice = -1)
         {
             try
             {
-                var result = await this.internalClient.WhisperLoadAsync(whisperModelInfo);
+                var result = await this.internalClient.WhisperLoadAsync(cudaDevice, whisperModelInfo);
                 return result;
             }
             catch (Exception ex)
@@ -835,7 +862,7 @@ namespace SharpAI.Client
             }
         }
 
-        public async Task<string?> RunWhisperAsync(string audioId, string? language = null, bool transcribe = false, bool useTimestamps = false, double chunkDuration = 10, CancellationToken ct = default)
+        public async Task<string?> RunWhisperAsync(string audioId, string? language = null, bool transcribe = false, bool useTimestamps = false, CancellationToken ct = default)
         {
             try
             {
@@ -844,7 +871,6 @@ namespace SharpAI.Client
                     language,
                     transcribe,
                     useTimestamps,
-                    chunkDuration,
                     null,  // isCancellationRequested
                     null,  // canBeCanceled
                     IntPtr.Zero,  // waitHandle_Handle
@@ -864,7 +890,7 @@ namespace SharpAI.Client
             }
         }
 
-        public async IAsyncEnumerable<string> RunWhisperStreamAsync(string audioId, string? language = null, bool transcribe = false, bool useTimestamps = false, bool useOverlap = true, double chunkDuration = 20, [EnumeratorCancellation] CancellationToken ct = default)
+        public async IAsyncEnumerable<string> RunWhisperStreamAsync(string audioId, string? language = null, bool transcribe = false, bool useTimestamps = false, [EnumeratorCancellation] CancellationToken ct = default)
         {
             var url = new StringBuilder("whisper-run-stream?audioId=")
                 .Append(Uri.EscapeDataString(audioId ?? string.Empty))
@@ -874,10 +900,6 @@ namespace SharpAI.Client
                 .Append(transcribe.ToString())
                 .Append("&useTimestamps=")
                 .Append(useTimestamps.ToString())
-                .Append("&useOverlap=")
-                .Append(useOverlap.ToString())
-                .Append("&chunkDuration=")
-                .Append(chunkDuration.ToString())
                 .ToString();
 
             using var request = new HttpRequestMessage(HttpMethod.Post, url)

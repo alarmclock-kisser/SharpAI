@@ -61,7 +61,7 @@ namespace SharpAI.Runtime
                 Version? version = await Task.Run(() =>
                 {
                     // Call CMD nvcc --version and parse output
-                    System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo
+                    System.Diagnostics.ProcessStartInfo startInfo = new()
                     {
                         FileName = "nvcc",
                         Arguments = "--version",

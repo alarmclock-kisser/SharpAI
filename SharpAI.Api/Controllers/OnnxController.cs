@@ -54,11 +54,11 @@ namespace SharpAI.Api.Controllers
         }
 
         [HttpPost("whisper-load")]
-        public async Task<ActionResult<bool>?> LoadWhisperModelAsync([FromBody] WhisperModelInfo? whisperModelInfo = null)
+        public async Task<ActionResult<bool>?> LoadWhisperModelAsync([FromBody] WhisperModelInfo? whisperModelInfo = null, [FromQuery] int useCudaDeviceId = -1)
         {
             try
             {
-                var result = await this.Onnx.InitializeAsync(whisperModelInfo);
+                var result = await this.Onnx.InitializeAsync(whisperModelInfo, useCudaDeviceId);
                 return result;
             }
             catch (Exception ex)
@@ -86,7 +86,7 @@ namespace SharpAI.Api.Controllers
 
         [HttpPost("whisper-run")]
         [Produces("application/json")]
-        public async Task<ActionResult<string>?> RunWhisperAsync([FromQuery] string audioId, [FromQuery] string? language = null, [FromQuery] bool transcribe = false, [FromQuery] bool useTimestamps = false, [FromQuery] double chunkDuration = 20, [FromQuery] CancellationToken ct = default)
+        public async Task<ActionResult<string>?> RunWhisperAsync([FromQuery] string audioId, [FromQuery] string? language = null, [FromQuery] bool transcribe = false, [FromQuery] bool useTimestamps = false, [FromQuery] CancellationToken ct = default)
         {
             if (!this.Onnx.IsInitialized)
             {
@@ -111,7 +111,7 @@ namespace SharpAI.Api.Controllers
                 }
 
 
-                var result = await this.Onnx.TranscribeAsync(audioObj, language, !transcribe, useTimestamps, true, chunkDuration, null, ct);
+                var result = await this.Onnx.TranscribeAsync(audioObj, language, !transcribe, useTimestamps, null, ct);
                 if (string.IsNullOrWhiteSpace(result))
                 {
                     return this.BadRequest("Onnx Task returned empty or null String.");
@@ -124,7 +124,7 @@ namespace SharpAI.Api.Controllers
                 return this.StatusCode(500, ex.Message);
             }
         }
-            
+
 
         [HttpGet("whisper-progress")]
         public ActionResult<double?> GetWhisperProgress()
@@ -142,7 +142,7 @@ namespace SharpAI.Api.Controllers
         [Produces("text/event-stream")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> RunWhisperStreamAsync([FromQuery] string audioId, [FromQuery] string? language = null, [FromQuery] bool transcribe = false, [FromQuery] bool useTimestamps = false, [FromQuery] bool useOverlap = true, [FromQuery] double chunkDuration = 20, CancellationToken ct = default)
+        public async Task<IActionResult> RunWhisperStreamAsync([FromQuery] string audioId, [FromQuery] string? language = null, [FromQuery] bool transcribe = false, [FromQuery] bool useTimestamps = false, CancellationToken ct = default)
         {
             if (!this.Onnx.IsInitialized)
             {
@@ -174,7 +174,7 @@ namespace SharpAI.Api.Controllers
 
             try
             {
-                await foreach (var chunk in this.Onnx.TranscribeStreamAsync(audioObj, language, !transcribe, useTimestamps, useOverlap, chunkDuration, null, ct).WithCancellation(ct))
+                await foreach (var chunk in this.Onnx.TranscribeStreamAsync(audioObj, language, !transcribe, useTimestamps, null, ct).WithCancellation(ct))
                 {
                     if (string.IsNullOrEmpty(chunk))
                     {

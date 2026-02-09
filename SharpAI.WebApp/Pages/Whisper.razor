@@ -30,7 +30,7 @@
                                     <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;padding:0.5rem 0.75rem;">
                                         <div style="flex:1;">
                                             <span style="font-weight:600;">@audio.Name</span>
-                                            <div style="font-size:0.85rem;color:var(--rz-text-secondary);">@audio.CreatedAt.ToString("g") · @TimeSpan.FromSeconds(audio.DurationInSeconds).ToString()</div>
+                                            <div style="font-size:0.85rem;color:var(--rz-text-secondary);">@audio.SampleRate.ToString() Hz · @audio.ChannelString · @TimeSpan.FromSeconds(audio.DurationInSeconds).ToString(@"hh\:mm\:ss\.fff")</div>
                                         </div>
                                         <div>
                                             <RadzenButton ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Text="Delete" Click="@(() => Vm.DeleteAsync(audio.Id))" />
@@ -86,9 +86,10 @@
                                         <RadzenCheckBox @bind-Value="Vm.StreamResponse" />
                                         <span>Stream response</span>
                                     </div>
-                                    <RadzenFormField Text="Chunk duration (seconds)">
-                                        <RadzenNumeric TValue="double" @bind-Value="Vm.ChunkDuration" Min="1" Step="1" />
-                                    </RadzenFormField>
+                                    <div style="display:flex;align-items:center;gap:0.5rem;">
+                                        <RadzenNumeric @bind-Value="Vm.CudaDeviceId" Min="-1" Max="10" Step="1" />
+                                        <span>CUDA Device ID</span>
+                                    </div>
                                 </RadzenStack>
                             </RadzenStack>
                         </RadzenColumn>

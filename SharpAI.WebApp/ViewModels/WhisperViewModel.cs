@@ -11,6 +11,12 @@ namespace SharpAI.WebApp.ViewModels
     {
         private readonly ApiClient api;
         private CancellationTokenSource? whisperCts;
+        // Client-side guards matching server heuristics
+        private const int RepeatTokenLimit = 8;
+        private const int MaxPunctBufferLength = 64;
+        private string _lastSingleToken = string.Empty;
+        private int _repeatSingleTokenCount = 0;
+        private string _punctBuffer = string.Empty;
 
         public WhisperViewModel(ApiClient api)
         {
@@ -24,10 +30,10 @@ namespace SharpAI.WebApp.ViewModels
         public WhisperModelInfo? SelectedWhisperModel { get; set; } = null;
         public WhisperModelInfo? LoadedWhisperModel { get; set; } = null;
 
-        public string[] Languages { get; set; } = new[]
-        {
+        public string[] Languages { get; set; } =
+        [
             "", "en", "es", "fr", "de", "zh", "ja", "ru", "it", "ko", "pt", "ar", "nl", "sv", "no", "fi", "da", "pl", "cs", "hu", "ro", "el", "tr", "vi", "th", "id", "ms", "he", "fa", "ur", "bg"
-        };
+        ];
         public bool IsInitialized => this.LoadedWhisperModel != null;
         public bool CanRunWhisper => this.IsInitialized && this.SelectedAudioId != Guid.Empty;
         public bool InitializeRunning { get; private set; } = false;
@@ -37,15 +43,14 @@ namespace SharpAI.WebApp.ViewModels
         public string InitializeButtonStyle => $"background-color: {this.InitializeButtonColorHex}; color: white; border: none; padding: 0.375rem 0.75rem; border-radius: 0.25rem; cursor: {(this.InitializeRunning ? "not-allowed" : "pointer")};";
 
         // Default to first entry (empty string) so dropdown shows the empty/default option
-        public string? Language { get; set; } = "";
+        public string? Language { get; set; } = "en";
 
-        public bool Transcribe { get; set; } = false;
+        public bool Transcribe { get; set; } = true;
 
-        public bool UseTimestamps { get; set; } = true;
+        public bool UseTimestamps { get; set; } = false;
 
         public bool StreamResponse { get; set; } = true;
-
-        public double ChunkDuration { get; set; } = 20;
+        public int CudaDeviceId { get; set; } = -1;
 
         public bool WhisperRunning { get; private set; } = false;
         public string RunWhisperButtonText => this.WhisperRunning ? "Cancel" : "Run Whisper";
@@ -86,7 +91,7 @@ namespace SharpAI.WebApp.ViewModels
             var whisperModels = await this.api.GetWhisperModelsAsync();
             if (whisperModels != null)
             {
-                this.WhisperModels = whisperModels.OrderBy(m => m.SizeInMb).ToList();
+                this.WhisperModels = whisperModels.OrderByDescending(m => m.SizeInMb).ToList();
             }
 
             if (!string.IsNullOrWhiteSpace(selectedModelName))
@@ -120,9 +125,18 @@ namespace SharpAI.WebApp.ViewModels
             {
                 var appsettings = await this.api.GetAppsettingsAsync();
 
-                if (appsettings != null)
+                if (appsettings != null && !string.IsNullOrWhiteSpace(appsettings.DefaultWhistperModel) && this.WhisperModels.Count > 0)
                 {
-                    this.SelectedWhisperModel = this.WhisperModels.FirstOrDefault(m => m.ModelName == appsettings.DefaultWhistperModel) ?? this.SelectedWhisperModel;
+                    this.SelectedWhisperModel = this.WhisperModels.FirstOrDefault(m => m.ModelName.Contains(appsettings.DefaultWhistperModel, StringComparison.OrdinalIgnoreCase)) ?? this.SelectedWhisperModel;
+                }
+
+                if (appsettings?.WhisperCudaDeviceId >= 0)
+                {
+                    this.CudaDeviceId = appsettings.WhisperCudaDeviceId;
+                }
+                else
+                {
+                    this.CudaDeviceId = -1;
                 }
 
                 this.FirstRender = false;
@@ -135,7 +149,7 @@ namespace SharpAI.WebApp.ViewModels
             this.InitializeRunning = true;
             await this.RefreshAsync();
 
-            var result = await this.api.LoadWhisperModelAsync(this.SelectedWhisperModel);
+            var result = await this.api.LoadWhisperModelAsync(this.SelectedWhisperModel, this.CudaDeviceId);
             if (result.HasValue && result.Value)
             {
                 this.StatusMessage = "Whisper model initialized.";
@@ -204,26 +218,74 @@ namespace SharpAI.WebApp.ViewModels
             {
                 if (this.StreamResponse)
                 {
-                    await foreach (var chunk in this.api.RunWhisperStreamAsync(this.SelectedAudioId.ToString(), this.Language, this.Transcribe, this.UseTimestamps, true, this.ChunkDuration, this.whisperCts.Token))
+                    await foreach (var chunk in this.api.RunWhisperStreamAsync(this.SelectedAudioId.ToString(), this.Language, this.Transcribe, this.UseTimestamps, this.whisperCts.Token))
                     {
-                        if (string.IsNullOrEmpty(chunk))
-                        {
-                            continue;
-                        }
+                        if (string.IsNullOrEmpty(chunk)) continue;
 
+                        // treat explicit newline markers
                         if (chunk == "\\n")
                         {
                             this.WhisperOutput += "\n";
+                            if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
+                            continue;
+                        }
+
+                        // Normalize server token (replace special marker 'Ġ' with space)
+                        var norm = chunk.Replace('Ġ', ' ');
+                        var simple = norm.Trim();
+
+                        if (string.IsNullOrEmpty(simple))
+                        {
+                            // nothing meaningful
+                            continue;
+                        }
+
+                        // detect small repeated tokens and skip after threshold
+                        if (simple.Length <= 3)
+                        {
+                            if (simple == _lastSingleToken) _repeatSingleTokenCount++; else { _lastSingleToken = simple; _repeatSingleTokenCount = 1; }
+                            if (_repeatSingleTokenCount >= RepeatTokenLimit)
+                            {
+                                // skip appending further repeated tokens to avoid UI spam
+                                this.StatusMessage = $"Skipped repeated token '{simple}' x{_repeatSingleTokenCount}.";
+                                if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
+                                continue;
+                            }
                         }
                         else
                         {
-                            this.WhisperOutput += chunk;
+                            _lastSingleToken = string.Empty;
+                            _repeatSingleTokenCount = 0;
                         }
 
-                        if (this.NotifyStateChanged != null)
+                        // buffer punctuation-only tokens to avoid long runs of punctuation
+                        bool isPunctOnly = true;
+                        foreach (var ch in simple)
                         {
-                            await this.NotifyStateChanged();
+                            if (!char.IsPunctuation(ch) && !char.IsWhiteSpace(ch)) { isPunctOnly = false; break; }
                         }
+
+                        if (isPunctOnly)
+                        {
+                            _punctBuffer += norm;
+                            if (_punctBuffer.Length > MaxPunctBufferLength)
+                            {
+                                this.WhisperOutput += _punctBuffer;
+                                _punctBuffer = string.Empty;
+                            }
+                        }
+                        else
+                        {
+                            // flush punctuation buffer then emit substantive token
+                            if (!string.IsNullOrEmpty(_punctBuffer))
+                            {
+                                this.WhisperOutput += _punctBuffer;
+                                _punctBuffer = string.Empty;
+                            }
+                            this.WhisperOutput += norm;
+                        }
+
+                        if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
                     }
 
                     if (string.IsNullOrWhiteSpace(this.WhisperOutput))
@@ -237,7 +299,7 @@ namespace SharpAI.WebApp.ViewModels
                 }
                 else
                 {
-                    var result = await this.api.RunWhisperAsync(this.SelectedAudioId.ToString(), this.Language, this.Transcribe, this.UseTimestamps, this.ChunkDuration, this.whisperCts.Token);
+                    var result = await this.api.RunWhisperAsync(this.SelectedAudioId.ToString(), this.Language, this.Transcribe, this.UseTimestamps, this.whisperCts.Token);
                     if (string.IsNullOrWhiteSpace(result))
                     {
                         this.StatusMessage = "No result from whisper transcription via ONNX.";

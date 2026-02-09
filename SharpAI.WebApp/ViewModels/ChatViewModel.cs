@@ -27,6 +27,7 @@ public sealed class ChatViewModel
         this.js = js;
     }
 
+
     public List<ChatMessageView> Messages { get; } = new();
     public string Prompt { get; set; } = string.Empty;
     public int MaxTokens { get; set; } = 512;
@@ -43,6 +44,8 @@ public sealed class ChatViewModel
     public bool ShowImages { get; private set; }
     public List<ImageSelection> ImageSelections { get; } = new();
     public Func<Task>? NotifyStateChanged { get; set; }
+
+    public bool SaveContext { get; set; } = false;
 
     private bool FirstRender { get; set; } = true;
 
@@ -92,6 +95,12 @@ public sealed class ChatViewModel
 
         this.ContextLabel = string.IsNullOrWhiteSpace(context?.FilePath) ? "Temporary" : "Loaded: '" + Path.GetFileNameWithoutExtension(context.FilePath) + "'";
         this.scrollPending = true;
+    }
+
+    public async Task RenewAsync()
+    {
+        await this.api.CreateContextAsync();
+        await this.RefreshAsync();
     }
 
     public async Task ToggleImagesAsync()
@@ -283,6 +292,53 @@ public sealed class ChatViewModel
         return new MarkupString(html);
     }
 
+    public string RemoveMarkdown(string? content)
+    {
+        if (string.IsNullOrEmpty(content))
+        {
+            return string.Empty;
+        }
+        // Remove markdown syntax to get plain text (basic approach)
+        var text = Regex.Replace(content, @"(\*\*|__)(.*?)\1", "$2"); // bold
+        text = Regex.Replace(text, @"(\*|_)(.*?)\1", "$2"); // italic
+        text = Regex.Replace(text, @"`{1,3}(.*?)`{1,3}", "$1"); // code
+        text = Regex.Replace(text, @"^>+\s?", string.Empty, RegexOptions.Multiline); // blockquotes
+        text = Regex.Replace(text, @"!\[.*?\]\(.*?\)", string.Empty); // images
+        text = Regex.Replace(text, @"\[([^\]]+)\]\(([^)]+)\)", "$1"); // links
+        return NormalizeFormatting(text);
+    }
+
+    public string RemoveMarkup(string? content)
+    {
+        if (string.IsNullOrEmpty(content)) return string.Empty;
+
+        // First remove common markdown constructs
+        var text = RemoveMarkdown(content);
+
+        // Remove any remaining HTML tags
+        text = Regex.Replace(text, "<[^>]+>", string.Empty, RegexOptions.IgnoreCase);
+
+        // Decode HTML entities
+        try
+        {
+            text = System.Net.WebUtility.HtmlDecode(text);
+        }
+        catch
+        {
+            // ignore decode errors
+        }
+
+        // Normalize line endings and collapse multiple blank lines
+        text = text.Replace("\r\n", "\n").Replace("\r", "\n");
+        text = Regex.Replace(text, "\n{2,}", "\n\n");
+
+        // Trim excessive whitespace
+        text = Regex.Replace(text, "[ \t]{2,}", " ");
+        text = text.Trim();
+
+        return text;
+    }
+
     private static string NormalizeFormatting(string text)
     {
         if (string.IsNullOrEmpty(text))
@@ -364,10 +420,46 @@ public sealed class ChatViewModel
         return null;
     }
 
+    public async Task TranslateMessageAsync(ChatMessageView message, string targetLanguage)
+    {
+        if (message == null || string.IsNullOrWhiteSpace(message.Content)) return;
+
+        try
+        {
+            if (string.IsNullOrEmpty(message.Translation))
+            {
+                // Strip markdown/HTML to provide clean plain text to the translation API
+                var sourceText = RemoveMarkup(message.Content);
+                var translated = await this.api.GoogleTranslateAsync(sourceText, null, targetLanguage);
+                if (!string.IsNullOrWhiteSpace(translated))
+                {
+                    message.Translation = translated;
+                }
+            }
+            else
+            {
+                // Translation was not empty, show original content
+                message.Translation = null;
+            }
+
+            if (this.NotifyStateChanged != null)
+            {
+                await this.NotifyStateChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+        }
+    }
+
+
+
     public sealed class ChatMessageView
     {
         public string Role { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
+        public string? Translation { get; set; } = null;
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
         public LlamaContextStats? Stats { get; set; }
     }

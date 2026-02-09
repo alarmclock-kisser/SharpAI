@@ -63,7 +63,7 @@ namespace SharpAI.Runtime
 
         public LlamaService(Appsettings appsettings)
         {
-            
+
         }
 
 

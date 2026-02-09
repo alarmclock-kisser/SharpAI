@@ -1207,6 +1207,14 @@
             }
           },
           {
+            "name": "tryMultimodal",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          {
             "name": "maxTokens",
             "in": "query",
             "schema": {
@@ -2144,6 +2152,59 @@
         }
       }
     },
+    "/api/Online/google-translate": {
+      "get": {
+        "tags": [
+          "Online"
+        ],
+        "parameters": [
+          {
+            "name": "text",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "originalLanguage",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "translateLanguage",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/onnx-status": {
       "get": {
         "tags": [
@@ -2215,6 +2276,17 @@
       "post": {
         "tags": [
           "Onnx"
+        ],
+        "parameters": [
+          {
+            "name": "useCudaDeviceId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": -1
+            }
+          }
         ],
         "requestBody": {
           "content": {
@@ -2322,15 +2394,6 @@
             "schema": {
               "type": "boolean",
               "default": false
-            }
-          },
-          {
-            "name": "chunkDuration",
-            "in": "query",
-            "schema": {
-              "type": "number",
-              "format": "double",
-              "default": 20
             }
           },
           {
@@ -2453,23 +2516,6 @@
               "type": "boolean",
               "default": false
             }
-          },
-          {
-            "name": "useOverlap",
-            "in": "query",
-            "schema": {
-              "type": "boolean",
-              "default": true
-            }
-          },
-          {
-            "name": "chunkDuration",
-            "in": "query",
-            "schema": {
-              "type": "number",
-              "format": "double",
-              "default": 20
-            }
           }
         ],
         "responses": {
@@ -2509,6 +2555,10 @@
           "defaultWhistperModel": {
             "type": "string",
             "nullable": true
+          },
+          "whisperCudaDeviceId": {
+            "type": "integer",
+            "format": "int32"
           },
           "preferredLlamaBackend": {
             "type": "string",
@@ -2555,6 +2605,9 @@
           "topP": {
             "type": "number",
             "format": "double"
+          },
+          "autoLoadLlama": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -2815,6 +2868,11 @@
             "type": "string",
             "nullable": true
           },
+          "modelDescriptor": {
+            "type": "string",
+            "nullable": true,
+            "readOnly": true
+          },
           "fileSizeMb": {
             "type": "number",
             "format": "double"
@@ -2822,6 +2880,10 @@
           "lastModified": {
             "type": "string",
             "format": "date-time"
+          },
+          "mmProjFilePath": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -2832,12 +2894,19 @@
           "modelFile": {
             "$ref": "#/components/schemas/LlamaModelFile"
           },
+          "mmProjPath": {
+            "type": "string",
+            "nullable": true
+          },
           "contextSize": {
             "type": "integer",
             "format": "int32"
           },
           "backend": {
             "$ref": "#/components/schemas/LlamaBackend"
+          },
+          "tryMultimodal": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -2885,6 +2954,16 @@
           "generationConfigPath": {
             "type": "string",
             "nullable": true
+          },
+          "vocabPath": {
+            "type": "string",
+            "nullable": true,
+            "readOnly": true
+          },
+          "mergesPath": {
+            "type": "string",
+            "nullable": true,
+            "readOnly": true
           }
         },
         "additionalProperties": false
@@ -2903,6 +2982,9 @@
     },
     {
       "name": "Log"
+    },
+    {
+      "name": "Online"
     },
     {
       "name": "Onnx"
