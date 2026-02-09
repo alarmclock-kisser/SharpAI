@@ -382,16 +382,24 @@ namespace SharpAI.Api.Controllers
         private async Task<IActionResult> DownloadAudioInternalAsync(string? guid, int bits)
         {
             if (string.IsNullOrEmpty(guid) || !Guid.TryParse(guid, out Guid audioId))
+            {
                 return this.BadRequest("Invalid or missing 'guid' query parameter.");
+            }
 
             try
             {
                 var obj = this.Audio[audioId];
-                if (obj == null) return this.NotFound("AudioObj not found with Guid: " + guid);
+                if (obj == null)
+                {
+                    return this.NotFound("AudioObj not found with Guid: " + guid);
+                }
 
                 var tempFilePath = Path.GetTempFileName();
                 string? exportedPath = await obj.ExportWavAsync(Path.GetDirectoryName(tempFilePath), Path.GetFileNameWithoutExtension(tempFilePath), bits);
-                if (string.IsNullOrEmpty(exportedPath)) return this.StatusCode(500, "Failed to export audio to temporary WAV file.");
+                if (string.IsNullOrEmpty(exportedPath))
+                {
+                    return this.StatusCode(500, "Failed to export audio to temporary WAV file.");
+                }
 
                 var wavStream = new FileStream(exportedPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
                 string fileName = $"{obj.Name}_{obj.Id}.wav";

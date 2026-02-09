@@ -147,7 +147,10 @@ namespace SharpAI.Core
                 {
                     short sample = BitConverter.ToInt16(e.Buffer, i);
                     float sampleFloat = Math.Abs(sample / 32768f);
-                    if (sampleFloat > peak) peak = sampleFloat;
+                    if (sampleFloat > peak)
+                    {
+                        peak = sampleFloat;
+                    }
                 }
             };
 

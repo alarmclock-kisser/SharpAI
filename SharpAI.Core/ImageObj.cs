@@ -53,6 +53,40 @@ namespace SharpAI.Core
             }
         }
 
+        public ImageObj(float[] floatData, int width, int height)
+        {
+            try
+            {
+                if (width <= 0 || height <= 0) throw new ArgumentOutOfRangeException(nameof(width));
+                ArgumentNullException.ThrowIfNull(floatData);
+
+                this.Width = width;
+                this.Height = height;
+
+                // Wir erstellen ein RGBA32 Ziel-Array (4 Bytes pro Pixel)
+                var pixelData = new byte[width * height * 4];
+
+                for (int i = 0; i < width * height; i++)
+                {
+                    int pixelIdx = i * 4;
+                    int floatIdx = i * 3; // Input hat nur R, G, B
+
+                    // Konvertierung von float [0.0, 1.0] zu byte [0, 255]
+                    pixelData[pixelIdx + 0] = (byte) Math.Clamp(floatData[floatIdx + 0] * 255, 0, 255); // R
+                    pixelData[pixelIdx + 1] = (byte) Math.Clamp(floatData[floatIdx + 1] * 255, 0, 255); // G
+                    pixelData[pixelIdx + 2] = (byte) Math.Clamp(floatData[floatIdx + 2] * 255, 0, 255); // B
+                    pixelData[pixelIdx + 3] = 255; // Volle Deckkraft (Alpha)
+                }
+
+                this.Img = Image.LoadPixelData<Rgba32>(pixelData, width, height);
+            }
+            catch (Exception ex)
+            {
+                LogException(ex, "Failed to create ImageObj from interleaved float data.");
+                throw;
+            }
+        }
+
         public ImageObj(string mime = "image/png", string base64data = "")
         {
             try
@@ -96,9 +130,9 @@ namespace SharpAI.Core
                     }
 
                     var maxDim = Math.Max(source.Width, source.Height);
-                    var scale = diagonalSize / (double)maxDim;
-                    var targetWidth = Math.Max(1, (int)Math.Round(source.Width * scale));
-                    var targetHeight = Math.Max(1, (int)Math.Round(source.Height * scale));
+                    var scale = diagonalSize / (double) maxDim;
+                    var targetWidth = Math.Max(1, (int) Math.Round(source.Width * scale));
+                    var targetHeight = Math.Max(1, (int) Math.Round(source.Height * scale));
 
                     using var thumb = source.Clone(ctx => ctx.Resize(targetWidth, targetHeight));
                     using var ms = new MemoryStream();
@@ -156,7 +190,7 @@ namespace SharpAI.Core
                 {
                     int cpuCount = usages.Length - 1; // First element is total average
                     int columns = cpuCount <= 6 ? 3 : 4;
-                    int rows = (int)Math.Ceiling(cpuCount / (double)columns);
+                    int rows = (int) Math.Ceiling(cpuCount / (double) columns);
                     int cellWidth = Math.Max(1, width / columns);
                     int cellHeight = Math.Max(1, height / rows);
                     int padding = Math.Max(1, Math.Min(cellWidth, cellHeight) / 8);
@@ -171,7 +205,7 @@ namespace SharpAI.Core
                         img.Mutate(c => c.Fill(Color.ParseHex(foreColor), cellRect));
 
                         float usage = Math.Clamp(usages[i + 1], 0f, 100f);
-                        int barHeight = (int)((cellHeight - padding * 2) * (usage / 100f));
+                        int barHeight = (int) ((cellHeight - padding * 2) * (usage / 100f));
                         if (barHeight > 0)
                         {
                             var barRect = new Rectangle(
@@ -230,10 +264,13 @@ namespace SharpAI.Core
                 int totalSamples = audioObj.Length / channels;
                 int availableSamples = totalSamples - offset;
 
-                if (availableSamples <= 0) return imageObj;
+                if (availableSamples <= 0)
+                {
+                    return imageObj;
+                }
 
                 // Wenn samplesPerPixel nicht gesetzt ist, skalieren wir das Audio passend zur Breite
-                int spp = samplesPerPixel ?? (int)Math.Ceiling((double)availableSamples / width);
+                int spp = samplesPerPixel ?? (int) Math.Ceiling((double) availableSamples / width);
 
                 // 3. Parallelisierung vorbereiten
                 // Wir berechnen die Min/Max Werte für jede vertikale Linie im Bild
@@ -245,7 +282,10 @@ namespace SharpAI.Core
                     Parallel.For(0, width, new ParallelOptions { MaxDegreeOfParallelism = maxWorkers.Value }, x =>
                     {
                         int startSample = offset + (x * spp);
-                        if (startSample >= totalSamples) return;
+                        if (startSample >= totalSamples)
+                        {
+                            return;
+                        }
 
                         int endSample = Math.Min(startSample + spp, totalSamples);
                         float min = 0;
@@ -261,8 +301,15 @@ namespace SharpAI.Core
                             }
                             float value = sampleSum / channels;
 
-                            if (value < min) min = value;
-                            if (value > max) max = value;
+                            if (value < min)
+                            {
+                                min = value;
+                            }
+
+                            if (value > max)
+                            {
+                                max = value;
+                            }
                         }
 
                         minValues[x] = min;
@@ -758,8 +805,8 @@ namespace SharpAI.Core
                 // 2. Resize nur anwenden, wenn der Scale-Faktor nicht 1.0 ist
                 if (Math.Abs(scale - 1.0) > 0.001)
                 {
-                    int newWidth = (int)Math.Max(1, image.Width * scale);
-                    int newHeight = (int)Math.Max(1, image.Height * scale);
+                    int newWidth = (int) Math.Max(1, image.Width * scale);
+                    int newHeight = (int) Math.Max(1, image.Height * scale);
 
                     image.Mutate(x => x.Resize(newWidth, newHeight, KnownResamplers.Lanczos3));
                 }

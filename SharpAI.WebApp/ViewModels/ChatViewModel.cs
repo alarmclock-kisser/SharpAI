@@ -56,7 +56,7 @@ public sealed class ChatViewModel
 
     public Task InitializeAsync()
     {
-        return InitializeInternalAsync();
+        return this.InitializeInternalAsync();
     }
 
     private async Task InitializeInternalAsync()
@@ -82,8 +82,8 @@ public sealed class ChatViewModel
         {
             var appsettings = await this.api.GetAppsettingsAsync();
             this.MaxTokens = appsettings?.MaxResponseTokens ?? this.MaxTokens;
-            this.Temperature = (float)(appsettings?.Temperature ?? this.Temperature);
-            this.TopP = (float)(appsettings?.TopP ?? this.TopP);
+            this.Temperature = (float) (appsettings?.Temperature ?? this.Temperature);
+            this.TopP = (float) (appsettings?.TopP ?? this.TopP);
             this.UseSystemPrompt = !string.IsNullOrEmpty(string.Join(" ", appsettings?.SystemPrompts.Select(p => p.Trim()) ?? []));
 
             if (!string.IsNullOrEmpty(appsettings?.DefaultContext))
@@ -260,13 +260,21 @@ INSTRUCTION: Answer the FINAL_TEXT. Use the KEYMAP (pauses, backspaces) to under
                     if (TryParseStats(chunk, out var stats))
                     {
                         assistantMessage.Stats = stats;
-                        if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
+                        if (this.NotifyStateChanged != null)
+                        {
+                            await this.NotifyStateChanged();
+                        }
+
                         await this.ScrollToBottomAsync();
                         continue;
                     }
 
                     assistantMessage.Content += NormalizeFormatting(chunk);
-                    if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
+                    if (this.NotifyStateChanged != null)
+                    {
+                        await this.NotifyStateChanged();
+                    }
+
                     await this.ScrollToBottomAsync();
                 }
             }
@@ -362,7 +370,10 @@ INSTRUCTION: Answer the FINAL_TEXT. Use the KEYMAP (pauses, backspaces) to under
 
     public string RemoveMarkup(string? content)
     {
-        if (string.IsNullOrEmpty(content)) return string.Empty;
+        if (string.IsNullOrEmpty(content))
+        {
+            return string.Empty;
+        }
 
         // First remove common markdown constructs
         var text = this.RemoveMarkdown(content);
@@ -443,7 +454,7 @@ INSTRUCTION: Answer the FINAL_TEXT. Use the KEYMAP (pauses, backspaces) to under
 
         return new LlamaContextStats
         {
-            TokensUsed = (int)tokensUsed.Value,
+            TokensUsed = (int) tokensUsed.Value,
             SecondsElapsed = elapsed.Value
         };
     }
@@ -474,7 +485,10 @@ INSTRUCTION: Answer the FINAL_TEXT. Use the KEYMAP (pauses, backspaces) to under
 
     public async Task TranslateMessageAsync(ChatMessageView message, string targetLanguage)
     {
-        if (message == null || string.IsNullOrWhiteSpace(message.Content)) return;
+        if (message == null || string.IsNullOrWhiteSpace(message.Content))
+        {
+            return;
+        }
 
         try
         {

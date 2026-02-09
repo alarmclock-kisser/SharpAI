@@ -63,8 +63,15 @@ namespace SharpAI.Runtime
             try
             {
                 // Audio preparation
-                if (audio.Channels != Channels) await audio.RechannelAsync(Channels);
-                if (audio.SampleRate != this.SampleRate) await audio.ResampleAsync(this.SampleRate);
+                if (audio.Channels != Channels)
+                {
+                    await audio.RechannelAsync(Channels);
+                }
+
+                if (audio.SampleRate != this.SampleRate)
+                {
+                    await audio.ResampleAsync(this.SampleRate);
+                }
 
                 float[] audioData = audio.Data;
                 int totalSamples = audioData.Length;
@@ -86,8 +93,12 @@ namespace SharpAI.Runtime
 
                     // RMS silence check
                     float sumSq = 0;
-                    for (int i = 0; i < lengthToTake; i++) sumSq += chunk[i] * chunk[i];
-                    float rms = lengthToTake > 0 ? (float)Math.Sqrt(sumSq / lengthToTake) : 0f;
+                    for (int i = 0; i < lengthToTake; i++)
+                    {
+                        sumSq += chunk[i] * chunk[i];
+                    }
+
+                    float rms = lengthToTake > 0 ? (float) Math.Sqrt(sumSq / lengthToTake) : 0f;
 
                     await StaticLogger.LogAsync($"Chunk {chunkIdx}: pos={position}/{totalSamples}, samples={lengthToTake}/{this.SamplesPerChunk}, rms={rms:F6}");
 
@@ -96,7 +107,7 @@ namespace SharpAI.Runtime
                         await StaticLogger.LogAsync($"Chunk {chunkIdx}: silence (rms={rms:F6} < {MinChunkRms}), skipping.");
                         position += this.SamplesPerChunk;
                         chunkIdx++;
-                        this.UpdateWhisperProgress((double)Math.Min(position, totalSamples) / totalSamples, progress);
+                        this.UpdateWhisperProgress((double) Math.Min(position, totalSamples) / totalSamples, progress);
                         continue;
                     }
 
@@ -121,7 +132,7 @@ namespace SharpAI.Runtime
                             await StaticLogger.LogAsync($"Chunk {chunkIdx}: mel tensor invalid (NaN/Inf). Skipping chunk.");
                             position += this.SamplesPerChunk;
                             chunkIdx++;
-                            this.UpdateWhisperProgress((double)Math.Min(position, totalSamples) / totalSamples, progress);
+                            this.UpdateWhisperProgress((double) Math.Min(position, totalSamples) / totalSamples, progress);
                             continue;
                         }
                         if (Math.Abs(maxF - minF) < 1e-6f)
@@ -129,7 +140,7 @@ namespace SharpAI.Runtime
                             await StaticLogger.LogAsync($"Chunk {chunkIdx}: mel tensor collapsed (min==max). Skipping chunk.");
                             position += this.SamplesPerChunk;
                             chunkIdx++;
-                            this.UpdateWhisperProgress((double)Math.Min(position, totalSamples) / totalSamples, progress);
+                            this.UpdateWhisperProgress((double) Math.Min(position, totalSamples) / totalSamples, progress);
                             continue;
                         }
                     }
@@ -162,7 +173,10 @@ namespace SharpAI.Runtime
                     string lang = string.IsNullOrEmpty(language) ? "en" : language;
                     tokens.Add(this.TokenMap.GetLanguageId(lang));
                     tokens.Add(taskTranslate ? this.TokenMap.Translate : this.TokenMap.Transcribe);
-                    if (!useTimestamps) tokens.Add(this.TokenMap.NoTimestamps);
+                    if (!useTimestamps)
+                    {
+                        tokens.Add(this.TokenMap.NoTimestamps);
+                    }
 
                     await StaticLogger.LogAsync($"Chunk {chunkIdx}: prompt tokens=[{string.Join(',', tokens)}]");
 
@@ -186,14 +200,20 @@ namespace SharpAI.Runtime
                             decoderInputs.Add(NamedOnnxValue.CreateFromTensor("encoder_hidden_states", lastHiddenState));
 
                             if (hasCacheBranch)
+                            {
                                 decoderInputs.Add(NamedOnnxValue.CreateFromTensor("use_cache_branch", new DenseTensor<bool>(new[] { useCache }, new[] { 1 })));
+                            }
 
                             foreach (var name in cacheInputNames)
                             {
                                 if (useCache && kvCache.TryGetValue(name, out var cached))
+                                {
                                     decoderInputs.Add(NamedOnnxValue.CreateFromTensor(name, cached));
+                                }
                                 else
+                                {
                                     decoderInputs.Add(NamedOnnxValue.CreateFromTensor(name, new DenseTensor<float>(this._decoderCacheShapes![name])));
+                                }
                             }
 
                             var swDec = System.Diagnostics.Stopwatch.StartNew();
@@ -207,7 +227,9 @@ namespace SharpAI.Runtime
                             // Copy logits to mutable array for applying penalties
                             float[] scores = new float[vocabSize];
                             for (int v = 0; v < vocabSize; v++)
+                            {
                                 scores[v] = logits[0, lastIdx, v];
+                            }
 
                             // *** CRITICAL: Suppress ALL special tokens except EOT ***
                             // Whisper special tokens (SOT, language, translate, transcribe, timestamps, etc.)
@@ -227,9 +249,13 @@ namespace SharpAI.Runtime
                                 if (rid >= 0 && rid < suppressFrom) // only penalize content tokens
                                 {
                                     if (scores[rid] > 0)
+                                    {
                                         scores[rid] /= RepetitionPenalty;
+                                    }
                                     else
+                                    {
                                         scores[rid] *= RepetitionPenalty;
+                                    }
                                 }
                             }
 
@@ -242,18 +268,34 @@ namespace SharpAI.Runtime
                                 int maskCap = 16; // allow more masking but cap it
                                 foreach (var c in cand)
                                 {
-                                    if (masked >= maskCap) break;
-                                    if (c.id >= suppressFrom) continue; // already suppressed
+                                    if (masked >= maskCap)
+                                    {
+                                        break;
+                                    }
+
+                                    if (c.id >= suppressFrom)
+                                    {
+                                        continue; // already suppressed
+                                    }
+
                                     string txt = string.Empty;
-                                    try { txt = this._tokenizer.Decode(new[] { (int)c.id }); } catch { txt = string.Empty; }
-                                    if (string.IsNullOrEmpty(txt)) continue;
+                                    try { txt = this._tokenizer.Decode(new[] { (int) c.id }); } catch { txt = string.Empty; }
+                                    if (string.IsNullOrEmpty(txt))
+                                    {
+                                        continue;
+                                    }
+
                                     var normalized = txt.Replace('Ġ', ' ').Trim();
                                     int len = normalized.Length;
-                                    if (len == 0) continue;
+                                    if (len == 0)
+                                    {
+                                        continue;
+                                    }
+
                                     int alpha = normalized.Count(ch => char.IsLetterOrDigit(ch));
                                     int printable = normalized.Count(ch => !char.IsControl(ch));
-                                    double alphaRatio = (double)alpha / len;
-                                    double printableRatio = (double)printable / len;
+                                    double alphaRatio = (double) alpha / len;
+                                    double printableRatio = (double) printable / len;
 
                                     bool nonAsciiOnly = normalized.All(ch => ch > 127 && !char.IsLetterOrDigit(ch) && !char.IsPunctuation(ch));
 
@@ -264,7 +306,10 @@ namespace SharpAI.Runtime
                                         masked++;
                                     }
                                 }
-                                if (masked > 0) await StaticLogger.LogAsync($"Applied top-k filter: masked {masked} candidate tokens.");
+                                if (masked > 0)
+                                {
+                                    await StaticLogger.LogAsync($"Applied top-k filter: masked {masked} candidate tokens.");
+                                }
                             }
                             catch { }
 
@@ -283,11 +328,14 @@ namespace SharpAI.Runtime
                             {
                                 try
                                 {
-                                    var greedyTxt = this._tokenizer.Decode(new[] { (int)bestTokenId })?.Replace('Ġ', ' ').Trim() ?? string.Empty;
+                                    var greedyTxt = this._tokenizer.Decode(new[] { (int) bestTokenId })?.Replace('Ġ', ' ').Trim() ?? string.Empty;
                                     int gLen = greedyTxt.Length;
                                     int gAlpha = greedyTxt.Count(ch => char.IsLetterOrDigit(ch));
-                                    double gAlphaRatio = gLen > 0 ? (double)gAlpha / gLen : 0.0;
-                                    if (gLen == 0 || gAlphaRatio < 0.25) doSampling = true;
+                                    double gAlphaRatio = gLen > 0 ? (double) gAlpha / gLen : 0.0;
+                                    if (gLen == 0 || gAlphaRatio < 0.25)
+                                    {
+                                        doSampling = true;
+                                    }
                                 }
                                 catch { doSampling = false; }
                             }
@@ -329,7 +377,9 @@ namespace SharpAI.Runtime
 
                             // Update KV cache
                             foreach (var outVal in decoderResults.Where(x => x.Name.StartsWith("present")))
+                            {
                                 kvCache[outVal.Name.Replace("present", "past_key_values")] = outVal.AsTensor<float>().ToDenseTensor();
+                            }
 
                             // compute top-2 scores to make EOT reselect decision
                             int top1 = -1, top2 = -1; float s1 = float.NegativeInfinity, s2 = float.NegativeInfinity;
@@ -380,10 +430,10 @@ namespace SharpAI.Runtime
                                     {
                                         try
                                         {
-                                            var candTxt = this._tokenizer.Decode(new[] { (int)newBest })?.Replace('Ġ', ' ').Trim() ?? string.Empty;
+                                            var candTxt = this._tokenizer.Decode(new[] { (int) newBest })?.Replace('Ġ', ' ').Trim() ?? string.Empty;
                                             int len = candTxt.Length;
                                             int alpha = candTxt.Count(ch => char.IsLetterOrDigit(ch));
-                                            double alphaRatio = len > 0 ? (double)alpha / len : 0.0;
+                                            double alphaRatio = len > 0 ? (double) alpha / len : 0.0;
                                             if (len >= 2 && alphaRatio >= 0.4 && !perChunkBanned.ContainsKey(newBest))
                                             {
                                                 acceptReselect = true;
@@ -419,8 +469,11 @@ namespace SharpAI.Runtime
                                 {
                                     int len = cleanWord.Length;
                                     int alpha = cleanWord.Count(ch => char.IsLetterOrDigit(ch));
-                                    double alphaRatio = len > 0 ? (double)alpha / len : 0.0;
-                                    if (len <= 3 && alphaRatio < 0.25) isSymbolLike = true;
+                                    double alphaRatio = len > 0 ? (double) alpha / len : 0.0;
+                                    if (len <= 3 && alphaRatio < 0.25)
+                                    {
+                                        isSymbolLike = true;
+                                    }
                                 }
                                 catch { isSymbolLike = false; }
 
@@ -436,12 +489,20 @@ namespace SharpAI.Runtime
                                         for (int attempt = 0; attempt < 3; attempt++)
                                         {
                                             int candId = -1; float candScore = float.NegativeInfinity;
-                                            for (int v = 0; v < vocabSize; v++) if (scores[v] > candScore) { candScore = scores[v]; candId = v; }
-                                            if (candId <= 0 || float.IsNegativeInfinity(candScore)) break;
+                                            for (int v = 0; v < vocabSize; v++)
+                                            {
+                                                if (scores[v] > candScore) { candScore = scores[v]; candId = v; }
+                                            }
+
+                                            if (candId <= 0 || float.IsNegativeInfinity(candScore))
+                                            {
+                                                break;
+                                            }
+
                                             string candTxt = string.Empty;
                                             try { candTxt = this._tokenizer.Decode(new[] { candId })?.Replace('Ġ', ' ').Trim() ?? string.Empty; } catch { candTxt = string.Empty; }
                                             int clen = candTxt.Length; int calpha = candTxt.Count(ch => char.IsLetterOrDigit(ch));
-                                            double cratio = clen > 0 ? (double)calpha / clen : 0.0;
+                                            double cratio = clen > 0 ? (double) calpha / clen : 0.0;
                                             if (clen >= 2 && cratio >= 0.35 && !perChunkBanned.ContainsKey(candId))
                                             {
                                                 bestTokenId = candId; reselected = true; await StaticLogger.LogAsync($"  Step {step}: Reselected non-symbol token id={bestTokenId} to avoid repeats."); break;
@@ -468,7 +529,11 @@ namespace SharpAI.Runtime
                                     bool loopDetected = false;
                                     for (int ng = LoopNgramSize; ng <= Math.Min(6, recentTokenIds.Count / 2); ng++)
                                     {
-                                        if (recentTokenIds.Count < ng * 2) continue;
+                                        if (recentTokenIds.Count < ng * 2)
+                                        {
+                                            continue;
+                                        }
+
                                         var last = recentTokenIds.Skip(recentTokenIds.Count - ng).Take(ng).ToList();
                                         var prev = recentTokenIds.Skip(recentTokenIds.Count - ng * 2).Take(ng).ToList();
                                         if (last.SequenceEqual(prev))
@@ -479,7 +544,10 @@ namespace SharpAI.Runtime
                                             break;
                                         }
                                     }
-                                    if (loopDetected) continue;
+                                    if (loopDetected)
+                                    {
+                                        continue;
+                                    }
                                 }
 
                                 textToYield = (rawText ?? "").Replace('Ġ', ' ');
@@ -493,14 +561,16 @@ namespace SharpAI.Runtime
                         }
 
                         if (textToYield != null)
+                        {
                             yield return textToYield;
+                        }
                     }
 
                     await StaticLogger.LogAsync($"Chunk {chunkIdx}: finished, generated {recentTokenIds.Count} content tokens.");
 
                     position += this.SamplesPerChunk;
                     chunkIdx++;
-                    this.UpdateWhisperProgress((double)Math.Min(position, totalSamples) / totalSamples, progress);
+                    this.UpdateWhisperProgress((double) Math.Min(position, totalSamples) / totalSamples, progress);
                 }
 
                 this.UpdateWhisperProgress(1.0, progress);
@@ -514,7 +584,10 @@ namespace SharpAI.Runtime
         private void UpdateWhisperProgress(double? value, IProgress<double>? progress)
         {
             this.CurrentWhisperProgress = value;
-            if (value.HasValue) progress?.Report(value.Value);
+            if (value.HasValue)
+            {
+                progress?.Report(value.Value);
+            }
         }
     }
 }

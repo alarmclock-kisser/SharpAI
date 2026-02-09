@@ -32,7 +32,11 @@ namespace SharpAI.Runtime
 
         public List<string> GetModelFiles(string[]? additionalDirectories = null)
         {
-            if (additionalDirectories != null) this.ModelDirectories.AddRange(additionalDirectories);
+            if (additionalDirectories != null)
+            {
+                this.ModelDirectories.AddRange(additionalDirectories);
+            }
+
             this.ModelDirectories = this.ModelDirectories.Where(Directory.Exists).Distinct().ToList();
             this.ModelFiles = this.ModelDirectories.SelectMany(dir => Directory.GetFiles(dir, "*.bin", SearchOption.AllDirectories)).ToList();
             return this.ModelFiles;
@@ -43,7 +47,10 @@ namespace SharpAI.Runtime
             return await Task.Run(() =>
             {
                 modelNameOrPath = this.ResolveModelPath(modelNameOrPath);
-                if (modelNameOrPath == null) return false;
+                if (modelNameOrPath == null)
+                {
+                    return false;
+                }
 
                 if (this.IsInitialized && this._wasCudaRequested != useCuda)
                 {
@@ -73,9 +80,14 @@ namespace SharpAI.Runtime
         public async Task<string> TranscribeAsync(AudioObj audio, string? language = null, bool useCuda = false, CancellationToken ct = default)
         {
             if (!this.IsInitialized || this._wasCudaRequested != useCuda)
+            {
                 await this.InitializeAsync(this.CurrentModelFile, useCuda);
+            }
 
-            if (this.Factory == null) return string.Empty;
+            if (this.Factory == null)
+            {
+                return string.Empty;
+            }
 
             await this.PreProcessAudio(audio);
 
@@ -115,9 +127,14 @@ namespace SharpAI.Runtime
         public async IAsyncEnumerable<string> TranscribeStreamAsync(AudioObj audio, string? language = null, bool useCuda = false, [EnumeratorCancellation] CancellationToken ct = default)
         {
             if (!this.IsInitialized || this._wasCudaRequested != useCuda)
+            {
                 await this.InitializeAsync(this.CurrentModelFile, useCuda);
+            }
 
-            if (this.Factory == null) yield break;
+            if (this.Factory == null)
+            {
+                yield break;
+            }
 
             await this.PreProcessAudio(audio);
 
@@ -133,7 +150,10 @@ namespace SharpAI.Runtime
 
             await foreach (var segment in processor.ProcessAsync(audio.Data))
             {
-                if (ct.IsCancellationRequested) yield break;
+                if (ct.IsCancellationRequested)
+                {
+                    yield break;
+                }
 
                 yield return segment.Text;
             }
@@ -149,14 +169,29 @@ namespace SharpAI.Runtime
 
         private async Task PreProcessAudio(AudioObj audio)
         {
-            if (audio.SampleRate != 16000) await audio.ResampleAsync(16000);
-            if (audio.Channels != 1) await audio.RechannelAsync(1);
+            if (audio.SampleRate != 16000)
+            {
+                await audio.ResampleAsync(16000);
+            }
+
+            if (audio.Channels != 1)
+            {
+                await audio.RechannelAsync(1);
+            }
         }
 
         private string? ResolveModelPath(string? modelNameOrPath)
         {
-            if (modelNameOrPath == null) return this.ModelFiles.FirstOrDefault();
-            if (File.Exists(modelNameOrPath)) return modelNameOrPath;
+            if (modelNameOrPath == null)
+            {
+                return this.ModelFiles.FirstOrDefault();
+            }
+
+            if (File.Exists(modelNameOrPath))
+            {
+                return modelNameOrPath;
+            }
+
             return this.ModelFiles.FirstOrDefault(f => Path.GetFileName(f).Contains(modelNameOrPath, StringComparison.OrdinalIgnoreCase));
         }
 

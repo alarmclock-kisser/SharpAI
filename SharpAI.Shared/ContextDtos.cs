@@ -11,7 +11,7 @@ namespace SharpAI.Shared
 
         public List<LlamaContextMessage> Messages { get; set; } = new();
 
-        public DateTime? LatestActivityDate => this.Messages.Count > 0 ? this.Messages[^1].Timestamp : File.Exists(this.FilePath) ? (DateTime?)File.GetLastWriteTimeUtc(this.FilePath) : null;
+        public DateTime? LatestActivityDate => this.Messages.Count > 0 ? this.Messages[^1].Timestamp : File.Exists(this.FilePath) ? (DateTime?) File.GetLastWriteTimeUtc(this.FilePath) : null;
     }
 
 

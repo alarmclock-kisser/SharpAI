@@ -5,5 +5,6 @@
   <Project Path="SharpAI.Online/SharpAI.Online.csproj" Id="0d4ac11c-0328-4a71-a45b-f716f7b4480f" />
   <Project Path="SharpAI.Runtime/SharpAI.Runtime.csproj" />
   <Project Path="SharpAI.Shared/SharpAI.Shared.csproj" />
+  <Project Path="SharpAI.StableDiffusion/SharpAI.StableDiffusion.csproj" Id="87bf5c62-d1a4-45fb-af2c-e88e513b5a0d" />
   <Project Path="SharpAI.WebApp/SharpAI.WebApp.csproj" />
 </Solution>

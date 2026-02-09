@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
 
@@ -43,6 +44,8 @@ namespace SharpAI.Core
             }
 
             LogAdded?.Invoke(logEntry);
+
+            Console.WriteLine(logEntry);
         }
 
         public static void Log(Exception ex)

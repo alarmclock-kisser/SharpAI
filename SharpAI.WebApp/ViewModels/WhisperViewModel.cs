@@ -96,7 +96,10 @@ namespace SharpAI.WebApp.ViewModels
                 this.FirstRender = false;
             }
 
-            if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
+            if (this.NotifyStateChanged != null)
+            {
+                await this.NotifyStateChanged();
+            }
         }
 
         public async Task InitializeWhisperAsync()
@@ -118,7 +121,10 @@ namespace SharpAI.WebApp.ViewModels
 
             this.InitializeRunning = false;
             await this.RefreshAsync();
-            if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
+            if (this.NotifyStateChanged != null)
+            {
+                await this.NotifyStateChanged();
+            }
         }
 
         public async Task DisposeWhisperAsync()
@@ -137,7 +143,10 @@ namespace SharpAI.WebApp.ViewModels
 
             this.InitializeRunning = false;
             await this.RefreshAsync();
-            if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
+            if (this.NotifyStateChanged != null)
+            {
+                await this.NotifyStateChanged();
+            }
         }
 
         public async Task RunWhisperAsync()
@@ -159,9 +168,16 @@ namespace SharpAI.WebApp.ViewModels
                 {
                     await foreach (var chunk in this.api.RunWhisperNetStreamAsync(this.SelectedAudioId.ToString(), this.Language, this.UseCuda, this.whisperCts.Token))
                     {
-                        if (string.IsNullOrEmpty(chunk)) continue;
+                        if (string.IsNullOrEmpty(chunk))
+                        {
+                            continue;
+                        }
+
                         this.WhisperOutput += chunk;
-                        if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
+                        if (this.NotifyStateChanged != null)
+                        {
+                            await this.NotifyStateChanged();
+                        }
                     }
                 }
                 else
@@ -173,7 +189,14 @@ namespace SharpAI.WebApp.ViewModels
                     }
                 }
 
-                if (string.IsNullOrWhiteSpace(this.WhisperOutput)) this.StatusMessage = "No result from whisper.net transcription."; else this.StatusMessage = "Whisper transcription completed.";
+                if (string.IsNullOrWhiteSpace(this.WhisperOutput))
+                {
+                    this.StatusMessage = "No result from whisper.net transcription.";
+                }
+                else
+                {
+                    this.StatusMessage = "Whisper transcription completed.";
+                }
             }
             catch (OperationCanceledException)
             {
@@ -183,9 +206,16 @@ namespace SharpAI.WebApp.ViewModels
             {
                 this.WhisperRunning = false;
                 this.InitializeRunning = false;
-                if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
+                if (this.NotifyStateChanged != null)
+                {
+                    await this.NotifyStateChanged();
+                }
+
                 await this.RefreshAsync();
-                if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
+                if (this.NotifyStateChanged != null)
+                {
+                    await this.NotifyStateChanged();
+                }
             }
         }
 
@@ -205,7 +235,10 @@ namespace SharpAI.WebApp.ViewModels
             this.WhisperRunning = false;
             this.InitializeRunning = false;
             await this.RefreshAsync();
-            if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
+            if (this.NotifyStateChanged != null)
+            {
+                await this.NotifyStateChanged();
+            }
         }
 
         public async Task DeleteAsync(Guid id)
@@ -217,7 +250,10 @@ namespace SharpAI.WebApp.ViewModels
                 this.SelectedAudioId = Guid.Empty;
             }
             await this.RefreshAsync();
-            if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
+            if (this.NotifyStateChanged != null)
+            {
+                await this.NotifyStateChanged();
+            }
         }
     }
 }

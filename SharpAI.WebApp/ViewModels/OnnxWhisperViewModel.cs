@@ -220,13 +220,20 @@ namespace SharpAI.WebApp.ViewModels
                 {
                     await foreach (var chunk in this.api.RunOnnxWhisperStreamAsync(this.SelectedAudioId.ToString(), this.Language, this.Transcribe, this.UseTimestamps, this.whisperCts.Token))
                     {
-                        if (string.IsNullOrEmpty(chunk)) continue;
+                        if (string.IsNullOrEmpty(chunk))
+                        {
+                            continue;
+                        }
 
                         // treat explicit newline markers
                         if (chunk == "\\n")
                         {
                             this.WhisperOutput += "\n";
-                            if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
+                            if (this.NotifyStateChanged != null)
+                            {
+                                await this.NotifyStateChanged();
+                            }
+
                             continue;
                         }
 
@@ -243,12 +250,16 @@ namespace SharpAI.WebApp.ViewModels
                         // detect small repeated tokens and skip after threshold
                         if (simple.Length <= 3)
                         {
-                            if (simple == this._lastSingleToken) this._repeatSingleTokenCount++; else { this._lastSingleToken = simple; this._repeatSingleTokenCount = 1; }
+                            if (simple == this._lastSingleToken) { this._repeatSingleTokenCount++; } else { this._lastSingleToken = simple; this._repeatSingleTokenCount = 1; }
                             if (this._repeatSingleTokenCount >= RepeatTokenLimit)
                             {
                                 // skip appending further repeated tokens to avoid UI spam
                                 this.StatusMessage = $"Skipped repeated token '{simple}' x{this._repeatSingleTokenCount}.";
-                                if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
+                                if (this.NotifyStateChanged != null)
+                                {
+                                    await this.NotifyStateChanged();
+                                }
+
                                 continue;
                             }
                         }
@@ -285,7 +296,10 @@ namespace SharpAI.WebApp.ViewModels
                             this.WhisperOutput += norm;
                         }
 
-                        if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
+                        if (this.NotifyStateChanged != null)
+                        {
+                            await this.NotifyStateChanged();
+                        }
                     }
 
                     if (string.IsNullOrWhiteSpace(this.WhisperOutput))
@@ -331,7 +345,11 @@ namespace SharpAI.WebApp.ViewModels
                 await progressTask;
                 this.WhisperRunning = false;
                 this.InitializeRunning = false;
-                if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
+                if (this.NotifyStateChanged != null)
+                {
+                    await this.NotifyStateChanged();
+                }
+
                 await this.RefreshAsync();
             }
         }

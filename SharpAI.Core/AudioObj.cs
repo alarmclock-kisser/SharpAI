@@ -22,7 +22,7 @@ namespace SharpAI.Core
         public int SampleRate { get; set; } = 0;
         public int Channels { get; set; } = 0;
         public int BitDepth { get; set; } = 0;
-        public TimeSpan Duration => (this.SampleRate > 0 && this.Channels > 0) ? TimeSpan.FromSeconds((double)this.Length / this.Channels / this.SampleRate) : TimeSpan.Zero;
+        public TimeSpan Duration => (this.SampleRate > 0 && this.Channels > 0) ? TimeSpan.FromSeconds((double) this.Length / this.Channels / this.SampleRate) : TimeSpan.Zero;
 
 
         public AudioObj()
@@ -79,12 +79,20 @@ namespace SharpAI.Core
                     this.SampleRate = reader.WaveFormat.SampleRate;
                     this.Channels = reader.WaveFormat.Channels;
                     this.BitDepth = reader.WaveFormat.BitsPerSample;
-                    var totalSamples = (int)(reader.Length / (reader.WaveFormat.BitsPerSample / 8));
+                    var totalSamples = (int) (reader.Length / (reader.WaveFormat.BitsPerSample / 8));
                     // Ensure we don't allocate absurdly large arrays
-                    if (totalSamples < 0 || totalSamples > 100_000_000) totalSamples = 0;
+                    if (totalSamples < 0 || totalSamples > 100_000_000)
+                    {
+                        totalSamples = 0;
+                    }
+
                     var buffer = new float[totalSamples];
                     int samplesRead = reader.Read(buffer, 0, totalSamples);
-                    if (samplesRead < 0) samplesRead = 0;
+                    if (samplesRead < 0)
+                    {
+                        samplesRead = 0;
+                    }
+
                     this.Data = buffer[..samplesRead];
                 }
                 this.Name = Path.GetFileNameWithoutExtension(filePath);

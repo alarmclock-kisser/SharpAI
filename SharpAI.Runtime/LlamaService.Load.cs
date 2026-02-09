@@ -82,7 +82,7 @@ namespace SharpAI.Runtime
 
             var modelParams = new ModelParams(loadRequest.ModelFile.FilePath)
             {
-                ContextSize = (uint)Math.Max(128, loadRequest.ContextSize),
+                ContextSize = (uint) Math.Max(128, loadRequest.ContextSize),
                 GpuLayerCount = backend == LlamaBackend.CUDA ? -1 : 0
             };
 
@@ -243,7 +243,7 @@ namespace SharpAI.Runtime
 
             var modelParams = new ModelParams(this.loadedModelRequest.ModelFile.FilePath)
             {
-                ContextSize = (uint)Math.Max(128, this.loadedModelRequest.ContextSize),
+                ContextSize = (uint) Math.Max(128, this.loadedModelRequest.ContextSize),
                 GpuLayerCount = backend == LlamaBackend.CUDA ? -1 : 0
             };
 

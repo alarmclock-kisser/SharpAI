@@ -23,7 +23,10 @@ public static class GoogleTranslateAccess
 
     public static async Task<string?> TranslateAsync(string text, string? originalLanguage, string translationLanguage = "en")
     {
-        if (string.IsNullOrWhiteSpace(text)) return text;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return text;
+        }
 
         try
         {
@@ -73,7 +76,10 @@ public static class GoogleTranslateAccess
             // Das erste Element ist das Array mit den Sätzen
             var sentencesArray = node?[0]?.AsArray();
 
-            if (sentencesArray == null) return null;
+            if (sentencesArray == null)
+            {
+                return null;
+            }
 
             var fullTranslation = new StringBuilder();
 

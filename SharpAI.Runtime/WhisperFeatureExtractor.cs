@@ -44,23 +44,38 @@ namespace SharpAI.Runtime
                     {
                         if (root.TryGetProperty(k, out var prop) && prop.ValueKind == JsonValueKind.Number)
                         {
-                            if (prop.TryGetInt32(out int v)) return v;
+                            if (prop.TryGetInt32(out int v))
+                            {
+                                return v;
+                            }
                         }
                     }
                     return -1;
                 }
 
                 var sr = GetInt("sampling_rate", "sample_rate", "sampleRate", "sr");
-                if (sr > 0) SampleRate = sr;
+                if (sr > 0)
+                {
+                    SampleRate = sr;
+                }
 
                 var n_fft = GetInt("n_fft", "nFft");
-                if (n_fft > 0) N_FFT = n_fft;
+                if (n_fft > 0)
+                {
+                    N_FFT = n_fft;
+                }
 
                 var hop = GetInt("hop_length", "hopLength", "hop");
-                if (hop > 0) HopLength = hop;
+                if (hop > 0)
+                {
+                    HopLength = hop;
+                }
 
                 var n_mels = GetInt("feature_size", "n_mels", "nMels", "num_mel_bins");
-                if (n_mels > 0) NMels = n_mels;
+                if (n_mels > 0)
+                {
+                    NMels = n_mels;
+                }
 
                 var chunk = GetInt("chunk_length");
                 if (chunk > 0)
@@ -70,7 +85,10 @@ namespace SharpAI.Runtime
                 }
 
                 var n_frames = GetInt("n_frames", "nFrames", "nb_max_frames");
-                if (n_frames > 0) NFrames = n_frames;
+                if (n_frames > 0)
+                {
+                    NFrames = n_frames;
+                }
                 else if (HopLength > 0)
                 {
                     NFrames = Math.Max(1, ChunkLengthSamples / HopLength);
@@ -93,12 +111,35 @@ namespace SharpAI.Runtime
         /// </summary>
         public static void SetParameters(int? nMels = null, int? nFrames = null, int? nFft = null, int? hopLength = null, int? sampleRate = null, int? chunkLengthSamples = null)
         {
-            if (nMels.HasValue && nMels.Value > 0) NMels = nMels.Value;
-            if (nFrames.HasValue && nFrames.Value > 0) NFrames = nFrames.Value;
-            if (nFft.HasValue && nFft.Value > 0) N_FFT = nFft.Value;
-            if (hopLength.HasValue && hopLength.Value > 0) HopLength = hopLength.Value;
-            if (sampleRate.HasValue && sampleRate.Value > 0) SampleRate = sampleRate.Value;
-            if (chunkLengthSamples.HasValue && chunkLengthSamples.Value > 0) ChunkLengthSamples = chunkLengthSamples.Value;
+            if (nMels.HasValue && nMels.Value > 0)
+            {
+                NMels = nMels.Value;
+            }
+
+            if (nFrames.HasValue && nFrames.Value > 0)
+            {
+                NFrames = nFrames.Value;
+            }
+
+            if (nFft.HasValue && nFft.Value > 0)
+            {
+                N_FFT = nFft.Value;
+            }
+
+            if (hopLength.HasValue && hopLength.Value > 0)
+            {
+                HopLength = hopLength.Value;
+            }
+
+            if (sampleRate.HasValue && sampleRate.Value > 0)
+            {
+                SampleRate = sampleRate.Value;
+            }
+
+            if (chunkLengthSamples.HasValue && chunkLengthSamples.Value > 0)
+            {
+                ChunkLengthSamples = chunkLengthSamples.Value;
+            }
 
             if (!chunkLengthSamples.HasValue && nFrames.HasValue && nFrames.Value > 0 && HopLength > 0)
             {
@@ -119,7 +160,9 @@ namespace SharpAI.Runtime
         public static DenseTensor<float> ComputeLogMelSpectrogram(float[] audio)
         {
             if (_melFilters == null || _hannWindow == null)
+            {
                 InitializeFilters();
+            }
 
             // 1. Reflection padding (center=True): pad N_FFT/2 on each side
             int pad = N_FFT / 2;
@@ -193,7 +236,7 @@ namespace SharpAI.Runtime
                         real += windowed[t] * cosTable[offset + t];
                         imag += windowed[t] * sinTable[offset + t];
                     }
-                    magnitudes[k] = (float)(real * real + imag * imag);
+                    magnitudes[k] = (float) (real * real + imag * imag);
                 }
 
                 powerSpec[frameIdx] = magnitudes;
@@ -204,7 +247,7 @@ namespace SharpAI.Runtime
             float[,] logMelSpec = new float[NMels, NFrames];
 
             // Initialize with silence value (will be overwritten for valid frames)
-            float silenceVal = (float)Math.Log10(1e-10);
+            float silenceVal = (float) Math.Log10(1e-10);
 
             for (int m = 0; m < NMels; m++)
             {
@@ -217,7 +260,7 @@ namespace SharpAI.Runtime
                         melEnergy += _melFilters![m, k] * frameMags[k];
                     }
 
-                    logMelSpec[m, t] = (float)Math.Log10(Math.Max(melEnergy, 1e-10));
+                    logMelSpec[m, t] = (float) Math.Log10(Math.Max(melEnergy, 1e-10));
                 }
 
                 // Fill remaining frames with silence
@@ -231,8 +274,15 @@ namespace SharpAI.Runtime
             // This matches OpenAI Whisper: log_spec = torch.clamp(log_spec, min=log_spec.max() - 8.0)
             float globalMax = float.NegativeInfinity;
             for (int m = 0; m < NMels; m++)
+            {
                 for (int t = 0; t < NFrames; t++)
-                    if (logMelSpec[m, t] > globalMax) globalMax = logMelSpec[m, t];
+                {
+                    if (logMelSpec[m, t] > globalMax)
+                    {
+                        globalMax = logMelSpec[m, t];
+                    }
+                }
+            }
 
             float clampMin = globalMax - 8.0f;
 
@@ -247,13 +297,28 @@ namespace SharpAI.Runtime
                     float val = Math.Max(logMelSpec[m, t], clampMin);
                     tensor[0, m, t] = (val + 4.0f) / 4.0f;
                     // stats
-                    if (float.IsNaN(val)) anyNaN = true;
-                    if (float.IsInfinity(val)) anyInf = true;
+                    if (float.IsNaN(val))
+                    {
+                        anyNaN = true;
+                    }
+
+                    if (float.IsInfinity(val))
+                    {
+                        anyInf = true;
+                    }
+
                     if (!float.IsNaN(val) && !float.IsInfinity(val))
                     {
                         sum += val; count++;
-                        if (val < minF) minF = val;
-                        if (val > maxF) maxF = val;
+                        if (val < minF)
+                        {
+                            minF = val;
+                        }
+
+                        if (val > maxF)
+                        {
+                            maxF = val;
+                        }
                     }
                 }
             }
@@ -276,7 +341,7 @@ namespace SharpAI.Runtime
             _hannWindow = new float[N_FFT];
             for (int i = 0; i < N_FFT; i++)
             {
-                _hannWindow[i] = 0.5f * (1.0f - (float)Math.Cos(2.0 * Math.PI * i / N_FFT));
+                _hannWindow[i] = 0.5f * (1.0f - (float) Math.Cos(2.0 * Math.PI * i / N_FFT));
             }
 
             // 2. Mel filterbank (Slaney mel scale + Slaney normalization, matching librosa defaults)
@@ -295,9 +360,13 @@ namespace SharpAI.Runtime
             double logStep = Math.Log(6.4) / 27.0;
 
             if (hz >= minLogHz)
+            {
                 return minLogMel + Math.Log(hz / minLogHz) / logStep;
+            }
             else
+            {
                 return (hz - fMin) / fSp;
+            }
         }
 
         private static double MelToHz(double mel)
@@ -309,9 +378,13 @@ namespace SharpAI.Runtime
             double logStep = Math.Log(6.4) / 27.0;
 
             if (mel >= minLogMel)
+            {
                 return minLogHz * Math.Exp(logStep * (mel - minLogMel));
+            }
             else
+            {
                 return fMin + fSp * mel;
+            }
         }
 
         /// <summary>
@@ -327,7 +400,7 @@ namespace SharpAI.Runtime
             double[] fftFreqs = new double[freqBins];
             for (int i = 0; i < freqBins; i++)
             {
-                fftFreqs[i] = (double)i * sampleRate / nFft;
+                fftFreqs[i] = (double) i * sampleRate / nFft;
             }
 
             // Mel points: nMels + 2 equally spaced points in mel space
@@ -360,11 +433,11 @@ namespace SharpAI.Runtime
 
                     if (freq >= lower && freq <= center && center > lower)
                     {
-                        weights[i, j] = (float)((freq - lower) / (center - lower));
+                        weights[i, j] = (float) ((freq - lower) / (center - lower));
                     }
                     else if (freq > center && freq <= upper && upper > center)
                     {
-                        weights[i, j] = (float)((upper - freq) / (upper - center));
+                        weights[i, j] = (float) ((upper - freq) / (upper - center));
                     }
                 }
 
@@ -372,7 +445,7 @@ namespace SharpAI.Runtime
                 double bandwidth = hzPoints[i + 2] - hzPoints[i];
                 if (bandwidth > 0)
                 {
-                    float norm = (float)(2.0 / bandwidth);
+                    float norm = (float) (2.0 / bandwidth);
                     for (int j = 0; j < freqBins; j++)
                     {
                         weights[i, j] *= norm;

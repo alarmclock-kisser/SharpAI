@@ -1,7 +1,4 @@
 
-
-
-
 namespace SharpAI.Api
 {
     public class Program
@@ -37,6 +34,7 @@ namespace SharpAI.Api
             builder.Services.AddSingleton<SharpAI.Core.AudioHandling>(sp => new SharpAI.Core.AudioHandling(appsettings.CustomAudioExportDirectory, appsettings.RessourceAudioPaths.ToArray()));
             builder.Services.AddSingleton<SharpAI.Core.LmStudioService>();
             builder.Services.AddSingleton<SharpAI.Runtime.WhisperService>();
+            builder.Services.AddSingleton<SharpAI.StableDiffusion.StableDiffusionService>();
 
             builder.Services.AddControllers();
             builder.Services.AddSignalR();
@@ -74,11 +72,18 @@ namespace SharpAI.Api
                                  || path.Contains("/negotiate", StringComparison.OrdinalIgnoreCase);
                     var incoming = $"[API] Incoming: {req.Method} {path}{qs} from {context.Connection.RemoteIpAddress}";
                     Console.WriteLine(incoming);
-                    if (!suppress) SharpAI.Core.StaticLogger.Log(incoming);
+                    if (!suppress)
+                    {
+                        SharpAI.Core.StaticLogger.Log(incoming);
+                    }
+
                     await next();
                     var outgoing = $"[API] Response: {context.Response.StatusCode} for {req.Method} {path}{qs}";
                     Console.WriteLine(outgoing);
-                    if (!suppress) SharpAI.Core.StaticLogger.Log(outgoing);
+                    if (!suppress)
+                    {
+                        SharpAI.Core.StaticLogger.Log(outgoing);
+                    }
                 }
                 catch (Exception ex)
                 {

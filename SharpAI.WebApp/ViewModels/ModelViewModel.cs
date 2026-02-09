@@ -67,7 +67,7 @@ public sealed class ModelViewModel
             };
             this.Backend = backend;
             this.ContextSize = appsettings?.MaxContextTokens ?? this.ContextSize;
-            this.DefaultTemperature = (float)(appsettings?.Temperature ?? this.DefaultTemperature);
+            this.DefaultTemperature = (float) (appsettings?.Temperature ?? this.DefaultTemperature);
             this.MaxTokens = appsettings?.MaxResponseTokens ?? this.MaxTokens;
             this.SelectedModelPath = string.IsNullOrWhiteSpace(appsettings?.DefaultLlamaModel) ? this.Models.FirstOrDefault()?.FilePath : this.Models.FirstOrDefault(m => m.FilePath.Contains(appsettings.DefaultLlamaModel, StringComparison.OrdinalIgnoreCase))?.FilePath;
             if (appsettings?.AutoLoadLlama == true)

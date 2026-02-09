@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -183,7 +184,81 @@ namespace SharpAI.Core
         }
 
 
+        public static async Task<string?> ExportZipAsync(IEnumerable<ImageObj> imageObjs, string? exportPath = null, string format = "png")
+        {
+            // Verify format
+            format = format.ToLower();
+            if (format != "png" && format != "jpg" && format != "jpeg" && format != "bmp")
+            {
+                format = "png";
+                await StaticLogger.LogAsync($"Unsupported format specified for export: {format}. Defaulting to PNG.");
+            }
 
+            // Verify export path
+            exportPath ??= Path.Combine(Path.GetTempPath(), $"ImageCollectionExport_{DateTime.Now:yyyyMMdd_HHmmss}.zip");
+
+            // Async and parallel export of images to temporary files
+            var tempFiles = new ConcurrentBag<string>();
+            var exportTasks = imageObjs.Select(async imgObj =>
+            {
+                try
+                {
+                    string tempFile = Path.Combine(Path.GetTempPath(), $"{imgObj.Id}.{format}");
+                    var exportFile = await imgObj.ExportAsync(tempFile, format);
+                    if (exportFile != null)
+                    {
+                        tempFiles.Add(exportFile);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await StaticLogger.LogAsync($"Error exporting image Id: {imgObj.Id} - {ex.Message}");
+                }
+            });
+
+            await Task.WhenAll(exportTasks);
+
+            // Create ZIP archive
+            var zipFile = new FileInfo(exportPath);
+            try
+            {
+                using (var zip = new System.IO.Compression.ZipArchive(zipFile.OpenWrite(), System.IO.Compression.ZipArchiveMode.Create))
+                {
+                    foreach (var tempFile in tempFiles)
+                    {
+                        var entryName = Path.GetFileName(tempFile);
+                        zip.CreateEntryFromFile(tempFile, entryName);
+                    }
+                }
+                await StaticLogger.LogAsync($"Exported {tempFiles.Count} images to ZIP: {exportPath}");
+                return exportPath;
+            }
+            catch (Exception ex)
+            {
+                await StaticLogger.LogAsync($"Error creating ZIP archive: {ex.Message}");
+                return null;
+            }
+            finally
+            {
+                // Clean up temporary files
+                foreach (var tempFile in tempFiles)
+                {
+                    try
+                    {
+                        if (File.Exists(tempFile))
+                        {
+                            File.Delete(tempFile);
+                            await StaticLogger.LogAsync($"Deleted temporary file: {tempFile}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        await StaticLogger.LogAsync($"Error deleting temporary file: {tempFile} - {ex.Message}");
+                    }
+                }
+            }
+
+        }
 
 
 

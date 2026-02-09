@@ -51,7 +51,10 @@ namespace SharpAI.Runtime
 
             foreach (var baseDir in this.SearchDirectories)
             {
-                if (!Directory.Exists(baseDir)) continue;
+                if (!Directory.Exists(baseDir))
+                {
+                    continue;
+                }
 
                 var subOps = new EnumerationOptions { RecurseSubdirectories = false };
                 var subDirectories = Directory.GetDirectories(baseDir, "*", subOps);
@@ -80,7 +83,9 @@ namespace SharpAI.Runtime
 
             // Prüfen, ob alle benötigten Dateien gefunden wurden
             if (encoder == null || decoder == null || tokenizer == null || preprocessor == null || config == null || generation == null)
+            {
                 return null;
+            }
 
             return new WhisperModelInfo(
                 name: Path.GetFileName(directory),
@@ -99,7 +104,10 @@ namespace SharpAI.Runtime
             foreach (var name in candidates)
             {
                 var path = Path.Combine(directory, name);
-                if (File.Exists(path)) return path;
+                if (File.Exists(path))
+                {
+                    return path;
+                }
             }
 
             // Fallback: suche nach Dateien, deren Name (ohne Pfad) mit einem Kandidaten beginnt
@@ -108,7 +116,10 @@ namespace SharpAI.Runtime
             {
                 var baseName = Path.GetFileNameWithoutExtension(candidate);
                 var match = files.FirstOrDefault(f => Path.GetFileName(f).StartsWith(baseName, StringComparison.OrdinalIgnoreCase));
-                if (match != null) return match;
+                if (match != null)
+                {
+                    return match;
+                }
             }
 
             return null;
@@ -118,7 +129,10 @@ namespace SharpAI.Runtime
         {
             if (model == null || !Directory.Exists(model.RootPath) || !File.Exists(model.EncoderPath))
             {
-                if (this.AvailableModels.Count >= 1) model = this.AvailableModels.First();
+                if (this.AvailableModels.Count >= 1)
+                {
+                    model = this.AvailableModels.First();
+                }
                 else
                 {
                     await StaticLogger.LogAsync("No whisper model available.");
@@ -226,8 +240,8 @@ namespace SharpAI.Runtime
 
                         // Nur setzen wenn Model konkrete positive Werte liefert (nicht -1 oder 0)
                         WhisperFeatureExtractor.SetParameters(
-                            nMels: modelNMels > 0 ? modelNMels : (int?)null,
-                            nFrames: modelNFrames > 0 ? modelNFrames : (int?)null
+                            nMels: modelNMels > 0 ? modelNMels : (int?) null,
+                            nFrames: modelNFrames > 0 ? modelNFrames : (int?) null
                         );
 
                         StaticLogger.Log($"WhisperFeatureExtractor parameters set from encoder metadata: n_mels={WhisperFeatureExtractor.NMels}, n_frames={WhisperFeatureExtractor.NFrames}");
@@ -264,8 +278,16 @@ namespace SharpAI.Runtime
         // Überladung für Standard-Initialisierung (nimmt das erste gefundene Modell)
         public async Task<bool> InitializeAsync()
         {
-            if (this.IsInitialized) return true;
-            if (this.AvailableModels.Count == 0) this.DiscoverModels();
+            if (this.IsInitialized)
+            {
+                return true;
+            }
+
+            if (this.AvailableModels.Count == 0)
+            {
+                this.DiscoverModels();
+            }
+
             if (this.AvailableModels.Count == 0)
             {
                 StaticLogger.Log("No valid Whisper models found in SearchDirectories.");
@@ -330,7 +352,9 @@ namespace SharpAI.Runtime
                     foreach (var prop in doc.RootElement.EnumerateObject())
                     {
                         if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.Number)
+                        {
                             this._vocabLookup[prop.Name] = prop.Value.GetInt32();
+                        }
                     }
                     StaticLogger.Log($"WhisperTokenMap: loaded {this._vocabLookup.Count} entries from vocab.json");
                 }
@@ -350,9 +374,15 @@ namespace SharpAI.Runtime
                     using var doc = System.Text.Json.JsonDocument.Parse(genText);
                     var root = doc.RootElement;
                     if (root.TryGetProperty("decoder_start_token_id", out var dstProp) && dstProp.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    {
                         genSot = dstProp.GetInt32();
+                    }
+
                     if (root.TryGetProperty("eos_token_id", out var eosProp) && eosProp.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    {
                         genEot = eosProp.GetInt32();
+                    }
+
                     StaticLogger.Log($"WhisperTokenMap: generation_config decoder_start={genSot}, eos={genEot}");
                 }
                 catch (Exception ex)
@@ -375,13 +405,18 @@ namespace SharpAI.Runtime
         {
             // 1. Try vocab.json lookup (most reliable)
             if (this._vocabLookup.TryGetValue(text, out int vocabId))
+            {
                 return vocabId;
+            }
 
             // 2. Try tokenizer encode (works if tokenizer knows special tokens)
             try
             {
                 var ids = this._tokenizer.EncodeToIds(text);
-                if (ids.Count == 1) return ids[0];
+                if (ids.Count == 1)
+                {
+                    return ids[0];
+                }
             }
             catch { }
 
@@ -396,12 +431,17 @@ namespace SharpAI.Runtime
 
             // Try vocab lookup first
             if (this._vocabLookup.TryGetValue(token, out int id))
+            {
                 return id;
+            }
 
             try
             {
                 var ids = this._tokenizer.EncodeToIds(token);
-                if (ids.Count == 1) return ids[0];
+                if (ids.Count == 1)
+                {
+                    return ids[0];
+                }
             }
             catch { }
 
@@ -410,8 +450,16 @@ namespace SharpAI.Runtime
 
         public bool HasToken(string token)
         {
-            if (string.IsNullOrEmpty(token)) return false;
-            if (this._vocabLookup.ContainsKey(token)) return true;
+            if (string.IsNullOrEmpty(token))
+            {
+                return false;
+            }
+
+            if (this._vocabLookup.ContainsKey(token))
+            {
+                return true;
+            }
+
             try
             {
                 var ids = this._tokenizer.EncodeToIds(token);

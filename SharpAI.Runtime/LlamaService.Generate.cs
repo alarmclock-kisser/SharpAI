@@ -149,7 +149,7 @@ namespace SharpAI.Runtime
                 : BuildTurnPrompt(prompt, this.SystemPrompt, useSystemPrompt);
 
             var promptTokens = this.llamaContext.Tokenize(fullPrompt, addBos: true, special: false).Length;
-            var contextSize = (int)this.llamaContext.ContextSize;
+            var contextSize = (int) this.llamaContext.ContextSize;
             var availableTokens = Math.Max(0, contextSize - promptTokens);
             var maxTokens = Math.Min(generationRequest.MaxTokens, availableTokens);
             if (maxTokens <= 0)
