@@ -70,17 +70,33 @@ namespace SharpAI.Api.Controllers
         }
 
         [HttpPost("log/message")]
-        public async Task<bool?> LogMessageAsync([FromBody] string logMessage = "")
+        public async Task<IActionResult> LogMessageAsync([FromBody] string logMessage = "")
         {
             try
             {
                 await StaticLogger.LogAsync(logMessage);
-                return true;
+                return Ok(true);
             }
             catch (Exception ex)
             {
                 StaticLogger.Log($"[Error] Exception in DoLogAsync: {ex}");
-                return null;
+                return StatusCode(500, "Error logging message");
+            }
+        }
+
+
+        public async Task<IActionResult> LogKeyStrokeMapAsync(KeyStrokeMapDto dto)
+        {
+            try
+            {
+                string str = dto.ToString();
+                await StaticLogger.LogAsync(str);
+                return Ok(true);
+            }
+            catch (Exception ex)
+            {
+                StaticLogger.Log($"[Error] Exception in LogKeyStrokeMapAsync: {ex}");
+                return this.StatusCode(500, "Error logging keystroke map");
             }
         }
     }

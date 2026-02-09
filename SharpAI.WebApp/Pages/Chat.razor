@@ -92,7 +92,10 @@
             <ChildContent>
                 <RadzenStack Gap="0.75rem">
                     <RadzenFormField Text="Prompt">
-                        <RadzenTextArea @bind-Value="Vm.Prompt" Rows="6" />
+                        <RadzenTextArea @bind-Value="Vm.Prompt"
+                                        Rows="6"
+                                        @MouseEnter-="Vm.TextBoxEntered"
+                                        @MouseLeave="Vm.TextBoxLeft" />
                     </RadzenFormField>
                     <RadzenRow Gap="0.5rem">
                         <RadzenColumn Size="12" SizeMD="6">

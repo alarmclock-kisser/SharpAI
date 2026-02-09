@@ -47,6 +47,10 @@ public sealed class ChatViewModel
 
     public bool SaveContext { get; set; } = false;
 
+
+    private KeyStrokeMap? keyStrokeMap;
+    private CancellationTokenSource? keyStrokeCts;
+
     private bool FirstRender { get; set; } = true;
 
 
@@ -451,6 +455,26 @@ public sealed class ChatViewModel
         {
             Console.WriteLine(ex);
         }
+    }
+
+    public async Task TextBoxEntered()
+    {
+        this.keyStrokeMap?.DisposeAsync();
+        this.keyStrokeCts?.Cancel();
+        this.keyStrokeCts = null;
+
+        this.keyStrokeCts = new CancellationTokenSource();
+        this.keyStrokeMap = new(this.js, this.keyStrokeCts.Token);
+    }
+
+    public async Task TextBoxLeft()
+    {
+        this.keyStrokeCts?.Cancel();
+        this.keyStrokeCts = null;
+
+        var dto = new KeyStrokeMapDto(this.keyStrokeMap?.GetMap() ?? []);
+        this.keyStrokeMap?.DisposeAsync();
+        this.keyStrokeMap = null;
     }
 
 

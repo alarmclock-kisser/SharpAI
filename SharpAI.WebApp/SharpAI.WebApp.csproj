@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SharpAI.Client\SharpAI.Client.csproj" />
+    <ProjectReference Include="..\SharpAI.Core\SharpAI.Core.csproj" />
     <ProjectReference Include="..\SharpAI.Shared\SharpAI.Shared.csproj" />
   </ItemGroup>
 

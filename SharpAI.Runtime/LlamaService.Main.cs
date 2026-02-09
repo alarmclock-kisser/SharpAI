@@ -9,7 +9,8 @@ namespace SharpAI.Runtime
     {
         public List<string> ModelDirectories { get; private set; } = [
             "%APPDATA%\\.lmstudio\\models\\",
-            "D:\\Models\\"
+            "D:\\Models\\",
+            Path.GetFullPath(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\Models\\")
             ];
 
         public List<LlamaModelFile> ModelFiles { get; private set; } = [];
