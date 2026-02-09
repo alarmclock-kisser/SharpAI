@@ -91,9 +91,9 @@ namespace SharpAI.Runtime
 
             // If the selected LlamaModelFile already has an associated MMProjFilePath (discovered
             // during model enumeration), use it unless an explicit MMProjPath was provided in the request.
-            if (string.IsNullOrEmpty(loadRequest.MMProjPath) && !string.IsNullOrEmpty(loadRequest.ModelFile?.MMProjFilePath))
+            if (string.IsNullOrEmpty(loadRequest.MMProjPath) && !string.IsNullOrEmpty(loadRequest.ModelFile?.MmprojFilePath) && loadRequest.TryLoadMultimodal)
             {
-                var mmproj = loadRequest.ModelFile.MMProjFilePath!;
+                var mmproj = loadRequest.ModelFile?.MmprojFilePath;
                 if (File.Exists(mmproj))
                 {
                     loadRequest.MMProjPath = mmproj;
@@ -103,7 +103,7 @@ namespace SharpAI.Runtime
 
             // If multimodal was requested and no projector path was provided,
             // try to discover a suitable .mmproj file in the same directory as the model.
-            if (loadRequest.TryMultimodal && string.IsNullOrEmpty(loadRequest.MMProjPath))
+            if (loadRequest.TryLoadMultimodal && string.IsNullOrEmpty(loadRequest.MMProjPath))
             {
                 try
                 {
@@ -154,7 +154,7 @@ namespace SharpAI.Runtime
             }
 
             this.llamaWeights = LLamaWeights.LoadFromFile(modelParams);
-            if (!string.IsNullOrEmpty(loadRequest?.MMProjPath) && File.Exists(loadRequest.MMProjPath))
+            if (!string.IsNullOrEmpty(loadRequest?.MMProjPath) && File.Exists(loadRequest.MMProjPath) && loadRequest.TryLoadMultimodal)
             {
                 try
                 {

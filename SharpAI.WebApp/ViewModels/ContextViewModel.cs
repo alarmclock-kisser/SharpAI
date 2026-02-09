@@ -56,9 +56,9 @@ public sealed class ContextViewModel
                 await this.api.LoadContextAsync(appsettings.DefaultContext);
             }
 
-            if (!string.IsNullOrEmpty(appsettings?.SystemPrompt))
+            if (!string.IsNullOrEmpty(string.Join(" ", appsettings?.SystemPrompts.Select(p => p.Trim()) ?? [])))
             {
-                await this.api.SetSystemPromptAsync(appsettings.SystemPrompt);
+                await this.api.SetSystemPromptAsync(string.Join(" ", appsettings?.SystemPrompts.Select(p => p.Trim()) ?? []));
             }
 
             this.FirstRender = false;

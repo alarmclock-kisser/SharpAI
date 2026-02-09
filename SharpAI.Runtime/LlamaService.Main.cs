@@ -101,7 +101,7 @@ namespace SharpAI.Runtime
                     {
                         var mf = new LlamaModelFile(other)
                         {
-                            MMProjFilePath = mmprojCandidate
+                            MmprojFilePath = mmprojCandidate
                         };
                         modelFiles.Add(mf);
                         continue;

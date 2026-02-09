@@ -136,7 +136,7 @@ namespace SharpAI.Api.Controllers
                 }
 
                 var loadRequest = new LlamaModelLoadRequest(modelFile, maxTokens, backend);
-                loadRequest.TryMultimodal = tryMultimodal;
+                loadRequest.TryLoadMultimodal = tryMultimodal;
                 var loadedModel = await this.Llama.LoadModelAsync(loadRequest, fuzzyMatch, null, ct);
                 if (loadedModel == null)
                 {

@@ -1,10 +1,12 @@
 using Markdig;
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using SharpAI.Client;
+using SharpAI.Core;
 using SharpAI.Shared;
 using System.Linq;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace SharpAI.WebApp.ViewModels;
 
@@ -29,7 +31,7 @@ public sealed class ChatViewModel
 
 
     public List<ChatMessageView> Messages { get; } = new();
-    public string Prompt { get; set; } = string.Empty;
+    public string CurrentPrompt { get; set; } = string.Empty;
     public int MaxTokens { get; set; } = 512;
     public float Temperature { get; set; } = 0.7f;
     public float TopP { get; set; } = 0.95f;
@@ -45,16 +47,29 @@ public sealed class ChatViewModel
     public List<ImageSelection> ImageSelections { get; } = new();
     public Func<Task>? NotifyStateChanged { get; set; }
 
-    public bool SaveContext { get; set; } = false;
 
+    public bool LogKeysEvents { get; set; } = false;
 
-    private KeyStrokeMap? keyStrokeMap;
-    private CancellationTokenSource? keyStrokeCts;
 
     private bool FirstRender { get; set; } = true;
 
 
-    public Task InitializeAsync() => this.RefreshAsync();
+    public Task InitializeAsync()
+    {
+        return InitializeInternalAsync();
+    }
+
+    private async Task InitializeInternalAsync()
+    {
+        try
+        {
+            // Ensure the keystroke logger attaches focus/start handlers on the prompt field
+            await this.js.InvokeVoidAsync("keystrokeLogger.attachFocusStart", "chatInput");
+        }
+        catch { }
+
+        await this.RefreshAsync();
+    }
 
     public void SetMessageContainer(ElementReference container)
     {
@@ -69,7 +84,7 @@ public sealed class ChatViewModel
             this.MaxTokens = appsettings?.MaxResponseTokens ?? this.MaxTokens;
             this.Temperature = (float)(appsettings?.Temperature ?? this.Temperature);
             this.TopP = (float)(appsettings?.TopP ?? this.TopP);
-            this.UseSystemPrompt = !string.IsNullOrEmpty(appsettings?.SystemPrompt);
+            this.UseSystemPrompt = !string.IsNullOrEmpty(string.Join(" ", appsettings?.SystemPrompts.Select(p => p.Trim()) ?? []));
 
             if (!string.IsNullOrEmpty(appsettings?.DefaultContext))
             {
@@ -138,7 +153,7 @@ public sealed class ChatViewModel
 
     public async Task SendAsync()
     {
-        if (string.IsNullOrWhiteSpace(this.Prompt))
+        if (string.IsNullOrWhiteSpace(this.CurrentPrompt))
         {
             return;
         }
@@ -147,10 +162,47 @@ public sealed class ChatViewModel
         this.IsGenerating = true;
         this.generationCts = new CancellationTokenSource();
 
+        // --- OPTIONALER KEYSTROKE LOG ---
+        string keystrokeLogJson = "[]";
+        string finalPromptForLlama = this.CurrentPrompt;
+
+        if (this.LogKeysEvents)
+        {
+            try
+            {
+                // Stop logging to ensure all events are flushed and handlers removed,
+                // then read the current log. startLogging() should have been called on focus.
+                try
+                {
+                    await this.js.InvokeVoidAsync("keystrokeLogger.stopLogging");
+                }
+                catch { }
+
+                // Small delay to allow browser event loop to settle
+                await Task.Delay(5);
+
+                // Prefer the safer snapshot-enabled getter so we at least capture typed content
+                keystrokeLogJson = await this.js.InvokeAsync<string>("keystrokeLogger.getLogWithSnapshot", "chatInput");
+
+                // Nur wenn wir loggen, bauen wir den Prompt um
+                finalPromptForLlama = @$"[FINAL_TEXT]: {this.CurrentPrompt}
+
+[BEHAVIORAL_KEYMAP_JSON]:
+{keystrokeLogJson}
+
+INSTRUCTION: Answer the FINAL_TEXT. Use the KEYMAP (pauses, backspaces) to understand my emotions while writing.";
+            }
+            catch (Exception ex)
+            {
+                StaticLogger.Log($"Keystroke retrieval failed: {ex.Message}");
+            }
+        }
+
+        // UI-Nachricht (immer der saubere Text)
         var userMessage = new ChatMessageView
         {
             Role = "user",
-            Content = this.Prompt,
+            Content = this.CurrentPrompt,
             Timestamp = DateTime.UtcNow
         };
         this.Messages.Add(userMessage);
@@ -165,7 +217,7 @@ public sealed class ChatViewModel
 
         var request = new LlamaGenerationRequest
         {
-            Prompt = this.Prompt,
+            Prompt = finalPromptForLlama, // Nutzt entweder den sauberen oder den angereicherten Prompt
             MaxTokens = this.MaxTokens,
             Temperature = this.Temperature,
             TopP = this.TopP,
@@ -174,6 +226,7 @@ public sealed class ChatViewModel
             Isolated = this.Isolated
         };
 
+        // Bilder Handling (Bestand)
         var selectedImages = this.ImageSelections.Where(item => item.IsSelected).ToList();
         if (selectedImages.Count > 0)
         {
@@ -187,9 +240,17 @@ public sealed class ChatViewModel
             }
         }
 
-        this.Prompt = string.Empty;
+        this.CurrentPrompt = string.Empty;
+
+        // Logger im Browser leeren, egal ob wir ihn genutzt haben oder nicht (für die nächste Runde)
+        if (this.LogKeysEvents)
+        {
+            await this.js.InvokeVoidAsync("keystrokeLogger.clearLog");
+        }
+
         await this.ScrollToBottomAsync();
 
+        // Ab hier folgt dein bestehender Try-Catch Block für GenerateStreamAsync / GenerateTextAsync...
         try
         {
             if (this.StreamResponse)
@@ -199,20 +260,13 @@ public sealed class ChatViewModel
                     if (TryParseStats(chunk, out var stats))
                     {
                         assistantMessage.Stats = stats;
-                        if (this.NotifyStateChanged != null)
-                        {
-                            await this.NotifyStateChanged();
-                        }
+                        if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
                         await this.ScrollToBottomAsync();
                         continue;
                     }
 
                     assistantMessage.Content += NormalizeFormatting(chunk);
-                    if (this.NotifyStateChanged != null)
-                    {
-                        await this.NotifyStateChanged();
-                    }
-
+                    if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
                     await this.ScrollToBottomAsync();
                 }
             }
@@ -226,14 +280,8 @@ public sealed class ChatViewModel
                 }
             }
         }
-        catch (OperationCanceledException)
-        {
-            this.ErrorMessage = "Generation canceled.";
-        }
-        catch (Exception ex)
-        {
-            this.ErrorMessage = ex.Message;
-        }
+        catch (OperationCanceledException) { this.ErrorMessage = "Generation canceled."; }
+        catch (Exception ex) { this.ErrorMessage = ex.Message; }
         finally
         {
             this.IsGenerating = false;
@@ -317,7 +365,7 @@ public sealed class ChatViewModel
         if (string.IsNullOrEmpty(content)) return string.Empty;
 
         // First remove common markdown constructs
-        var text = RemoveMarkdown(content);
+        var text = this.RemoveMarkdown(content);
 
         // Remove any remaining HTML tags
         text = Regex.Replace(text, "<[^>]+>", string.Empty, RegexOptions.IgnoreCase);
@@ -433,7 +481,7 @@ public sealed class ChatViewModel
             if (string.IsNullOrEmpty(message.Translation))
             {
                 // Strip markdown/HTML to provide clean plain text to the translation API
-                var sourceText = RemoveMarkup(message.Content);
+                var sourceText = this.RemoveMarkup(message.Content);
                 var translated = await this.api.GoogleTranslateAsync(sourceText, null, targetLanguage);
                 if (!string.IsNullOrWhiteSpace(translated))
                 {
@@ -457,25 +505,11 @@ public sealed class ChatViewModel
         }
     }
 
-    public async Task TextBoxEntered()
+    public async Task OnInputFocusAsync()
     {
-        this.keyStrokeMap?.DisposeAsync();
-        this.keyStrokeCts?.Cancel();
-        this.keyStrokeCts = null;
-
-        this.keyStrokeCts = new CancellationTokenSource();
-        this.keyStrokeMap = new(this.js, this.keyStrokeCts.Token);
+        await this.js.InvokeVoidAsync("keystrokeLogger.startLogging", "chatInput");
     }
 
-    public async Task TextBoxLeft()
-    {
-        this.keyStrokeCts?.Cancel();
-        this.keyStrokeCts = null;
-
-        var dto = new KeyStrokeMapDto(this.keyStrokeMap?.GetMap() ?? []);
-        this.keyStrokeMap?.DisposeAsync();
-        this.keyStrokeMap = null;
-    }
 
 
 
@@ -492,5 +526,13 @@ public sealed class ChatViewModel
     {
         public ImageObjInfo Image { get; set; } = new();
         public bool IsSelected { get; set; }
+    }
+
+    public class KeystrokeEntry
+    {
+        [JsonPropertyName("k")] public string Key { get; set; } = "";     // Die Taste
+        [JsonPropertyName("t")] public double Timestamp { get; set; }    // Zeit seit Start in ms
+        [JsonPropertyName("p")] public int CursorPos { get; set; }       // Cursor-Position
+        [JsonPropertyName("type")] public string Type { get; set; } = "down";
     }
 }

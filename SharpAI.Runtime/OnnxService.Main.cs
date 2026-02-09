@@ -318,7 +318,7 @@ namespace SharpAI.Runtime
 
         public WhisperTokenMap(Tokenizer tokenizer, string? generationConfigPath = null, string? vocabPath = null)
         {
-            _tokenizer = tokenizer;
+            this._tokenizer = tokenizer;
 
             // Build vocab lookup from vocab.json for reliable special token resolution
             if (!string.IsNullOrEmpty(vocabPath) && File.Exists(vocabPath))
@@ -330,9 +330,9 @@ namespace SharpAI.Runtime
                     foreach (var prop in doc.RootElement.EnumerateObject())
                     {
                         if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.Number)
-                            _vocabLookup[prop.Name] = prop.Value.GetInt32();
+                            this._vocabLookup[prop.Name] = prop.Value.GetInt32();
                     }
-                    StaticLogger.Log($"WhisperTokenMap: loaded {_vocabLookup.Count} entries from vocab.json");
+                    StaticLogger.Log($"WhisperTokenMap: loaded {this._vocabLookup.Count} entries from vocab.json");
                 }
                 catch (Exception ex)
                 {
@@ -361,26 +361,26 @@ namespace SharpAI.Runtime
                 }
             }
 
-            Sot = genSot > 0 ? genSot : GetSpecialTokenId("<|startoftranscript|>", 50258);
-            Eot = genEot > 0 ? genEot : GetSpecialTokenId("<|endoftext|>", 50257);
-            Translate = GetSpecialTokenId("<|translate|>", 50358);
-            Transcribe = GetSpecialTokenId("<|transcribe|>", 50359);
-            NoTimestamps = GetSpecialTokenId("<|notimestamps|>", 50363);
-            English = GetSpecialTokenId("<|en|>", 50259);
+            this.Sot = genSot > 0 ? genSot : this.GetSpecialTokenId("<|startoftranscript|>", 50258);
+            this.Eot = genEot > 0 ? genEot : this.GetSpecialTokenId("<|endoftext|>", 50257);
+            this.Translate = this.GetSpecialTokenId("<|translate|>", 50358);
+            this.Transcribe = this.GetSpecialTokenId("<|transcribe|>", 50359);
+            this.NoTimestamps = this.GetSpecialTokenId("<|notimestamps|>", 50363);
+            this.English = this.GetSpecialTokenId("<|en|>", 50259);
 
-            StaticLogger.Log($"WhisperTokenMap resolved: SOT={Sot}, EOT={Eot}, Transcribe={Transcribe}, Translate={Translate}, NoTimestamps={NoTimestamps}, En={English}");
+            StaticLogger.Log($"WhisperTokenMap resolved: SOT={this.Sot}, EOT={this.Eot}, Transcribe={this.Transcribe}, Translate={this.Translate}, NoTimestamps={this.NoTimestamps}, En={this.English}");
         }
 
         private int GetSpecialTokenId(string text, int fallback)
         {
             // 1. Try vocab.json lookup (most reliable)
-            if (_vocabLookup.TryGetValue(text, out int vocabId))
+            if (this._vocabLookup.TryGetValue(text, out int vocabId))
                 return vocabId;
 
             // 2. Try tokenizer encode (works if tokenizer knows special tokens)
             try
             {
-                var ids = _tokenizer.EncodeToIds(text);
+                var ids = this._tokenizer.EncodeToIds(text);
                 if (ids.Count == 1) return ids[0];
             }
             catch { }
@@ -395,26 +395,26 @@ namespace SharpAI.Runtime
             string token = $"<|{langCode.ToLower()}|>";
 
             // Try vocab lookup first
-            if (_vocabLookup.TryGetValue(token, out int id))
+            if (this._vocabLookup.TryGetValue(token, out int id))
                 return id;
 
             try
             {
-                var ids = _tokenizer.EncodeToIds(token);
+                var ids = this._tokenizer.EncodeToIds(token);
                 if (ids.Count == 1) return ids[0];
             }
             catch { }
 
-            return English;
+            return this.English;
         }
 
         public bool HasToken(string token)
         {
             if (string.IsNullOrEmpty(token)) return false;
-            if (_vocabLookup.ContainsKey(token)) return true;
+            if (this._vocabLookup.ContainsKey(token)) return true;
             try
             {
-                var ids = _tokenizer.EncodeToIds(token);
+                var ids = this._tokenizer.EncodeToIds(token);
                 return ids.Count == 1;
             }
             catch { return false; }

@@ -20,7 +20,7 @@ namespace SharpAI.Shared
 
         public string? CustomAudioExportDirectory { get; set; }
 
-        public string SystemPrompt { get; set; } = string.Empty;
+        public string[] SystemPrompts { get; set; } = [];
         public string? DefaultContext { get; set; }
 
         public int MaxContextTokens { get; set; } = 4096;

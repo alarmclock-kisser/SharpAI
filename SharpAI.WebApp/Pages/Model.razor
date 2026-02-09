@@ -52,6 +52,12 @@
                             <RadzenFormField Text="Backend">
                                 <RadzenDropDown Data="Enum.GetValues<LlamaBackend>()" @bind-Value="Vm.Backend" Disabled="@(Vm.IsLoaded || Vm.IsBusy)" />
                             </RadzenFormField>
+                            <RadzenFormField>
+                                <div style="display:flex; align-items:center; justify-content:flex-end; gap:0.5rem;">
+                                    <RadzenCheckBox @bind-Value="Vm.LoadMmproj" Disabled="@(Vm.IsLoaded || Vm.IsBusy || Vm.SelectedMmprojPath == null)" />
+                                    <label style="margin:0; user-select:none;">Load MMProj</label>
+                                </div>
+                            </RadzenFormField>
                         </RadzenColumn>
                     </RadzenRow>
 

@@ -42,10 +42,10 @@ namespace SharpAI.Runtime
         {
             return await Task.Run(() =>
             {
-                modelNameOrPath = ResolveModelPath(modelNameOrPath);
+                modelNameOrPath = this.ResolveModelPath(modelNameOrPath);
                 if (modelNameOrPath == null) return false;
 
-                if (this.IsInitialized && _wasCudaRequested != useCuda)
+                if (this.IsInitialized && this._wasCudaRequested != useCuda)
                 {
                     this.Factory?.Dispose();
                     this.Factory = null;
@@ -54,7 +54,7 @@ namespace SharpAI.Runtime
                 try
                 {
                     this.CurrentModelFile = modelNameOrPath;
-                    _wasCudaRequested = useCuda;
+                    this._wasCudaRequested = useCuda;
                     StaticLogger.Log($"Initializing Whisper (CUDA: {useCuda}) with model: {Path.GetFileName(modelNameOrPath)}");
 
                     this.Factory = WhisperFactory.FromPath(modelNameOrPath);
@@ -72,17 +72,17 @@ namespace SharpAI.Runtime
 
         public async Task<string> TranscribeAsync(AudioObj audio, string? language = null, bool useCuda = false, CancellationToken ct = default)
         {
-            if (!IsInitialized || _wasCudaRequested != useCuda)
-                await InitializeAsync(this.CurrentModelFile, useCuda);
+            if (!this.IsInitialized || this._wasCudaRequested != useCuda)
+                await this.InitializeAsync(this.CurrentModelFile, useCuda);
 
             if (this.Factory == null) return string.Empty;
 
-            await PreProcessAudio(audio);
+            await this.PreProcessAudio(audio);
 
             try
             {
-                var builder = Factory.CreateBuilder()
-                    .WithThreads(CalculateThreads(useCuda));
+                var builder = this.Factory.CreateBuilder()
+                    .WithThreads(this.CalculateThreads(useCuda));
 
                 // Nur wenn eine Sprache explizit mitgegeben wird, nutzen wir sie.
                 // Ansonsten triggert Whisper.net automatisch die Erkennung.
@@ -114,15 +114,15 @@ namespace SharpAI.Runtime
 
         public async IAsyncEnumerable<string> TranscribeStreamAsync(AudioObj audio, string? language = null, bool useCuda = false, [EnumeratorCancellation] CancellationToken ct = default)
         {
-            if (!IsInitialized || _wasCudaRequested != useCuda)
-                await InitializeAsync(this.CurrentModelFile, useCuda);
+            if (!this.IsInitialized || this._wasCudaRequested != useCuda)
+                await this.InitializeAsync(this.CurrentModelFile, useCuda);
 
             if (this.Factory == null) yield break;
 
-            await PreProcessAudio(audio);
+            await this.PreProcessAudio(audio);
 
-            var builder = Factory.CreateBuilder()
-                .WithThreads(CalculateThreads(useCuda));
+            var builder = this.Factory.CreateBuilder()
+                .WithThreads(this.CalculateThreads(useCuda));
 
             if (!string.IsNullOrEmpty(language))
             {
@@ -155,9 +155,9 @@ namespace SharpAI.Runtime
 
         private string? ResolveModelPath(string? modelNameOrPath)
         {
-            if (modelNameOrPath == null) return ModelFiles.FirstOrDefault();
+            if (modelNameOrPath == null) return this.ModelFiles.FirstOrDefault();
             if (File.Exists(modelNameOrPath)) return modelNameOrPath;
-            return ModelFiles.FirstOrDefault(f => Path.GetFileName(f).Contains(modelNameOrPath, StringComparison.OrdinalIgnoreCase));
+            return this.ModelFiles.FirstOrDefault(f => Path.GetFileName(f).Contains(modelNameOrPath, StringComparison.OrdinalIgnoreCase));
         }
 
         public void Dispose()

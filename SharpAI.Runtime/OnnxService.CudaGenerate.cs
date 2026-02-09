@@ -64,24 +64,24 @@ namespace SharpAI.Runtime
             {
                 // Audio preparation
                 if (audio.Channels != Channels) await audio.RechannelAsync(Channels);
-                if (audio.SampleRate != SampleRate) await audio.ResampleAsync(SampleRate);
+                if (audio.SampleRate != this.SampleRate) await audio.ResampleAsync(this.SampleRate);
 
                 float[] audioData = audio.Data;
                 int totalSamples = audioData.Length;
                 int position = 0;
 
-                await StaticLogger.LogAsync($"Audio: {totalSamples} samples, {totalSamples / (float)SampleRate:F1}s, SampleRate={SampleRate}, ChunkSamples={SamplesPerChunk}");
+                await StaticLogger.LogAsync($"Audio: {totalSamples} samples, {totalSamples / (float) this.SampleRate:F1}s, SampleRate={this.SampleRate}, ChunkSamples={this.SamplesPerChunk}");
 
                 // Pre-compute decoder metadata
-                var cacheInputNames = _decoderSession.InputMetadata.Keys.Where(k => k.StartsWith("past_key_values")).ToList();
-                bool hasCacheBranch = _decoderSession.InputMetadata.ContainsKey("use_cache_branch");
+                var cacheInputNames = this._decoderSession.InputMetadata.Keys.Where(k => k.StartsWith("past_key_values")).ToList();
+                bool hasCacheBranch = this._decoderSession.InputMetadata.ContainsKey("use_cache_branch");
                 await StaticLogger.LogAsync($"Decoder: {cacheInputNames.Count} cache inputs, use_cache_branch={hasCacheBranch}");
 
                 int chunkIdx = 0;
                 while (position < totalSamples && !ct.IsCancellationRequested)
                 {
-                    int lengthToTake = Math.Min(totalSamples - position, SamplesPerChunk);
-                    float[] chunk = new float[SamplesPerChunk]; // zero-padded to full chunk size
+                    int lengthToTake = Math.Min(totalSamples - position, this.SamplesPerChunk);
+                    float[] chunk = new float[this.SamplesPerChunk]; // zero-padded to full chunk size
                     Array.Copy(audioData, position, chunk, 0, lengthToTake);
 
                     // RMS silence check
@@ -89,12 +89,12 @@ namespace SharpAI.Runtime
                     for (int i = 0; i < lengthToTake; i++) sumSq += chunk[i] * chunk[i];
                     float rms = lengthToTake > 0 ? (float)Math.Sqrt(sumSq / lengthToTake) : 0f;
 
-                    await StaticLogger.LogAsync($"Chunk {chunkIdx}: pos={position}/{totalSamples}, samples={lengthToTake}/{SamplesPerChunk}, rms={rms:F6}");
+                    await StaticLogger.LogAsync($"Chunk {chunkIdx}: pos={position}/{totalSamples}, samples={lengthToTake}/{this.SamplesPerChunk}, rms={rms:F6}");
 
                     if (rms < MinChunkRms)
                     {
                         await StaticLogger.LogAsync($"Chunk {chunkIdx}: silence (rms={rms:F6} < {MinChunkRms}), skipping.");
-                        position += SamplesPerChunk;
+                        position += this.SamplesPerChunk;
                         chunkIdx++;
                         this.UpdateWhisperProgress((double)Math.Min(position, totalSamples) / totalSamples, progress);
                         continue;
@@ -119,7 +119,7 @@ namespace SharpAI.Runtime
                         if (anyNaN || anyInf || float.IsNaN(minF) || float.IsNaN(maxF))
                         {
                             await StaticLogger.LogAsync($"Chunk {chunkIdx}: mel tensor invalid (NaN/Inf). Skipping chunk.");
-                            position += SamplesPerChunk;
+                            position += this.SamplesPerChunk;
                             chunkIdx++;
                             this.UpdateWhisperProgress((double)Math.Min(position, totalSamples) / totalSamples, progress);
                             continue;
@@ -127,7 +127,7 @@ namespace SharpAI.Runtime
                         if (Math.Abs(maxF - minF) < 1e-6f)
                         {
                             await StaticLogger.LogAsync($"Chunk {chunkIdx}: mel tensor collapsed (min==max). Skipping chunk.");
-                            position += SamplesPerChunk;
+                            position += this.SamplesPerChunk;
                             chunkIdx++;
                             this.UpdateWhisperProgress((double)Math.Min(position, totalSamples) / totalSamples, progress);
                             continue;
@@ -152,7 +152,7 @@ namespace SharpAI.Runtime
                     {
                         swEnc.Stop();
                         await StaticLogger.LogAsync($"Chunk {chunkIdx}: encoder FAILED: {ex.Message}");
-                        position += SamplesPerChunk;
+                        position += this.SamplesPerChunk;
                         chunkIdx++;
                         continue;
                     }
@@ -193,7 +193,7 @@ namespace SharpAI.Runtime
                                 if (useCache && kvCache.TryGetValue(name, out var cached))
                                     decoderInputs.Add(NamedOnnxValue.CreateFromTensor(name, cached));
                                 else
-                                    decoderInputs.Add(NamedOnnxValue.CreateFromTensor(name, new DenseTensor<float>(_decoderCacheShapes![name])));
+                                    decoderInputs.Add(NamedOnnxValue.CreateFromTensor(name, new DenseTensor<float>(this._decoderCacheShapes![name])));
                             }
 
                             var swDec = System.Diagnostics.Stopwatch.StartNew();
@@ -498,7 +498,7 @@ namespace SharpAI.Runtime
 
                     await StaticLogger.LogAsync($"Chunk {chunkIdx}: finished, generated {recentTokenIds.Count} content tokens.");
 
-                    position += SamplesPerChunk;
+                    position += this.SamplesPerChunk;
                     chunkIdx++;
                     this.UpdateWhisperProgress((double)Math.Min(position, totalSamples) / totalSamples, progress);
                 }

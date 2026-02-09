@@ -1,10 +1,13 @@
 ﻿@page "/"
 @page "/chat"
+@using Microsoft.JSInterop
 @using Radzen
 @using Radzen.Blazor
 @using SharpAI.Shared
 @using SharpAI.WebApp.ViewModels
+@using System.Linq
 @inject ChatViewModel Vm
+@inject IJSRuntime JS
 
 <RadzenHeading Size="H1" Text="Chat" />
 
@@ -91,11 +94,15 @@
         <RadzenCard Variant="Variant.Outlined" Title="Generate">
             <ChildContent>
                 <RadzenStack Gap="0.75rem">
+                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <RadzenCheckBox @bind-Value="@Vm.LogKeysEvents" Name="logKeys" TValue="bool" />
+                        <RadzenLabel Text="Log Keys Events (Behavioral Analysis)" Component="logKeys" Style="margin-left: 8px; font-size: 0.9rem; opacity: 0.8;" />
+                    </div>
                     <RadzenFormField Text="Prompt">
-                        <RadzenTextArea @bind-Value="Vm.Prompt"
-                                        Rows="6"
-                                        @MouseEnter-="Vm.TextBoxEntered"
-                                        @MouseLeave="Vm.TextBoxLeft" />
+                        <RadzenTextArea id="chatInput"
+                                        @bind-Value="@Vm.CurrentPrompt"
+                                        Placeholder="Prompt something ..."
+                                        @onfocus="Vm.OnInputFocusAsync" />
                     </RadzenFormField>
                     <RadzenRow Gap="0.5rem">
                         <RadzenColumn Size="12" SizeMD="6">
@@ -186,6 +193,12 @@
         if (firstRender)
         {
             Vm.SetMessageContainer(messageContainer);
+            // Ensure keystroke logger attaches focus/start handlers to the prompt field
+            try
+            {
+                await JS.InvokeVoidAsync("keystrokeLogger.attachFocusStart", "chatInput");
+            }
+            catch { }
         }
 
         await Vm.ApplyScrollAsync();

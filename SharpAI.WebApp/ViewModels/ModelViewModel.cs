@@ -17,6 +17,8 @@ public sealed class ModelViewModel
 
     public List<LlamaModelFile> Models { get; } = new();
     public string? SelectedModelPath { get; set; }
+    public string? SelectedMmprojPath => this.Models.FirstOrDefault(m => string.Equals(m.FilePath, this.SelectedModelPath, StringComparison.OrdinalIgnoreCase))?.MmprojFilePath;
+    public bool LoadMmproj { get; set; } = false;
     public int ContextSize { get; set; } = 2048;
     public LlamaBackend Backend { get; set; } = LlamaBackend.CPU;
     public float DefaultTemperature { get; set; } = 0.7f;
@@ -155,6 +157,8 @@ public sealed class ModelViewModel
             }
 
             var request = new LlamaModelLoadRequest(model, this.ContextSize, this.Backend);
+            request.TryLoadMultimodal = this.LoadMmproj && !string.IsNullOrWhiteSpace(this.SelectedMmprojPath);
+
             var loaded = await this.api.LoadModelAsync(request, this.FuzzyMatch, true);
             if (loaded != null)
             {

@@ -16,14 +16,6 @@ namespace SharpAI.Shared
         public string QuantizationType { get; set; } = string.Empty;
     }
 
-    public class LmStudioModelLoadRequest
-    {
-        public LmStudioModel Model { get; set; }
-
-
-
-    }
-
 
     public enum LmStudioBackend
     {

@@ -243,19 +243,19 @@ namespace SharpAI.WebApp.ViewModels
                         // detect small repeated tokens and skip after threshold
                         if (simple.Length <= 3)
                         {
-                            if (simple == _lastSingleToken) _repeatSingleTokenCount++; else { _lastSingleToken = simple; _repeatSingleTokenCount = 1; }
-                            if (_repeatSingleTokenCount >= RepeatTokenLimit)
+                            if (simple == this._lastSingleToken) this._repeatSingleTokenCount++; else { this._lastSingleToken = simple; this._repeatSingleTokenCount = 1; }
+                            if (this._repeatSingleTokenCount >= RepeatTokenLimit)
                             {
                                 // skip appending further repeated tokens to avoid UI spam
-                                this.StatusMessage = $"Skipped repeated token '{simple}' x{_repeatSingleTokenCount}.";
+                                this.StatusMessage = $"Skipped repeated token '{simple}' x{this._repeatSingleTokenCount}.";
                                 if (this.NotifyStateChanged != null) await this.NotifyStateChanged();
                                 continue;
                             }
                         }
                         else
                         {
-                            _lastSingleToken = string.Empty;
-                            _repeatSingleTokenCount = 0;
+                            this._lastSingleToken = string.Empty;
+                            this._repeatSingleTokenCount = 0;
                         }
 
                         // buffer punctuation-only tokens to avoid long runs of punctuation
@@ -267,20 +267,20 @@ namespace SharpAI.WebApp.ViewModels
 
                         if (isPunctOnly)
                         {
-                            _punctBuffer += norm;
-                            if (_punctBuffer.Length > MaxPunctBufferLength)
+                            this._punctBuffer += norm;
+                            if (this._punctBuffer.Length > MaxPunctBufferLength)
                             {
-                                this.WhisperOutput += _punctBuffer;
-                                _punctBuffer = string.Empty;
+                                this.WhisperOutput += this._punctBuffer;
+                                this._punctBuffer = string.Empty;
                             }
                         }
                         else
                         {
                             // flush punctuation buffer then emit substantive token
-                            if (!string.IsNullOrEmpty(_punctBuffer))
+                            if (!string.IsNullOrEmpty(this._punctBuffer))
                             {
-                                this.WhisperOutput += _punctBuffer;
-                                _punctBuffer = string.Empty;
+                                this.WhisperOutput += this._punctBuffer;
+                                this._punctBuffer = string.Empty;
                             }
                             this.WhisperOutput += norm;
                         }
