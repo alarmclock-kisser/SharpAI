@@ -64,6 +64,7 @@ namespace SharpAI.WebApp
             builder.Services.AddScoped<ContextViewModel>();
             builder.Services.AddScoped<ImageViewModel>();
             builder.Services.AddScoped<AudioViewModel>();
+            builder.Services.AddScoped<OnnxWhisperViewModel>();
             builder.Services.AddScoped<WhisperViewModel>();
 
             var app = builder.Build();

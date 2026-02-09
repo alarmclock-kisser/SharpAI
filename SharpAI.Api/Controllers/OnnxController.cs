@@ -39,7 +39,7 @@ namespace SharpAI.Api.Controllers
             }
         }
 
-        [HttpGet("whisper-models")]
+        [HttpGet("onnx-models")]
         public ActionResult<List<WhisperModelInfo>?> GetWhisperOnnxModels()
         {
             try
@@ -53,7 +53,7 @@ namespace SharpAI.Api.Controllers
             }
         }
 
-        [HttpPost("whisper-load")]
+        [HttpPost("onnx-load")]
         public async Task<ActionResult<bool>?> LoadWhisperModelAsync([FromBody] WhisperModelInfo? whisperModelInfo = null, [FromQuery] int useCudaDeviceId = -1)
         {
             try
@@ -69,7 +69,7 @@ namespace SharpAI.Api.Controllers
             }
         }
 
-        [HttpDelete("whisper-dispose")]
+        [HttpDelete("onnx-dispose")]
         public ActionResult<bool>? DisposeWhisper()
         {
             try
@@ -84,7 +84,7 @@ namespace SharpAI.Api.Controllers
             }
         }
 
-        [HttpPost("whisper-run")]
+        [HttpPost("onnx-run")]
         [Produces("application/json")]
         public async Task<ActionResult<string>?> RunWhisperAsync([FromQuery] string audioId, [FromQuery] string? language = null, [FromQuery] bool transcribe = false, [FromQuery] bool useTimestamps = false, [FromQuery] CancellationToken ct = default)
         {
@@ -126,7 +126,7 @@ namespace SharpAI.Api.Controllers
         }
 
 
-        [HttpGet("whisper-progress")]
+        [HttpGet("onnx-progress")]
         public ActionResult<double?> GetWhisperProgress()
         {
             var progress = this.Onnx.CurrentWhisperProgress;
@@ -138,7 +138,7 @@ namespace SharpAI.Api.Controllers
             return this.Ok(progress.Value);
         }
 
-        [HttpPost("whisper-run-stream")]
+        [HttpPost("onnx-run-stream")]
         [Produces("text/event-stream")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]

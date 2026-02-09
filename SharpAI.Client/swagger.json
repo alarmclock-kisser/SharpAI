@@ -2234,7 +2234,7 @@
         }
       }
     },
-    "/whisper-models": {
+    "/onnx-models": {
       "get": {
         "tags": [
           "Onnx"
@@ -2272,7 +2272,7 @@
         }
       }
     },
-    "/whisper-load": {
+    "/onnx-load": {
       "post": {
         "tags": [
           "Onnx"
@@ -2331,7 +2331,7 @@
         }
       }
     },
-    "/whisper-dispose": {
+    "/onnx-dispose": {
       "delete": {
         "tags": [
           "Onnx"
@@ -2360,7 +2360,7 @@
         }
       }
     },
-    "/whisper-run": {
+    "/onnx-run": {
       "post": {
         "tags": [
           "Onnx"
@@ -2446,7 +2446,7 @@
         }
       }
     },
-    "/whisper-progress": {
+    "/onnx-progress": {
       "get": {
         "tags": [
           "Onnx"
@@ -2481,7 +2481,7 @@
         }
       }
     },
-    "/whisper-run-stream": {
+    "/onnx-run-stream": {
       "post": {
         "tags": [
           "Onnx"
@@ -2515,6 +2515,312 @@
             "schema": {
               "type": "boolean",
               "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/Whisper/whisper-status": {
+      "get": {
+        "tags": [
+          "Whisper"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Whisper/whisper-models": {
+      "get": {
+        "tags": [
+          "Whisper"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Whisper/whisper-load": {
+      "post": {
+        "tags": [
+          "Whisper"
+        ],
+        "parameters": [
+          {
+            "name": "useCuda",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "boolean"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Whisper/whisper-dispose": {
+      "delete": {
+        "tags": [
+          "Whisper"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "boolean"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Whisper/whisper-run": {
+      "post": {
+        "tags": [
+          "Whisper"
+        ],
+        "parameters": [
+          {
+            "name": "audioId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "useCuda",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "IsCancellationRequested",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "CanBeCanceled",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "WaitHandle.Handle",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/IntPtr"
+            }
+          },
+          {
+            "name": "WaitHandle.SafeWaitHandle.IsInvalid",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "WaitHandle.SafeWaitHandle.IsClosed",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Whisper/whisper-run-stream": {
+      "post": {
+        "tags": [
+          "Whisper"
+        ],
+        "parameters": [
+          {
+            "name": "audioId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "useCuda",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "IsCancellationRequested",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "CanBeCanceled",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "WaitHandle.Handle",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/IntPtr"
+            }
+          },
+          {
+            "name": "WaitHandle.SafeWaitHandle.IsInvalid",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "WaitHandle.SafeWaitHandle.IsClosed",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -2665,6 +2971,19 @@
           "name": {
             "type": "string",
             "nullable": true
+          },
+          "sampleRate": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "channels": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "channelString": {
+            "type": "string",
+            "nullable": true,
+            "readOnly": true
           },
           "durationInSeconds": {
             "type": "number",
@@ -2988,6 +3307,9 @@
     },
     {
       "name": "Onnx"
+    },
+    {
+      "name": "Whisper"
     }
   ]
 }

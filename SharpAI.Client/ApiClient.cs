@@ -777,7 +777,7 @@ namespace SharpAI.Client
 
 
 
-        // Whisper (ONNX)
+        // ONNX (Whisper)
         public async Task<WhisperModelInfo?> GetCurrentOnnxWhisperModel()
         {
             try
@@ -796,11 +796,11 @@ namespace SharpAI.Client
             }
         }
 
-        public async Task<ICollection<WhisperModelInfo>?> GetWhisperModelsAsync()
+        public async Task<ICollection<WhisperModelInfo>?> GetOnnxWhisperModelsAsync()
         {
             try
             {
-                var response = await this.internalClient.WhisperModelsAsync();
+                var response = await this.internalClient.OnnxModelsAsync();
                 return response;
             }
             catch (ApiException ex) when (ex.StatusCode == 204)
@@ -814,11 +814,11 @@ namespace SharpAI.Client
             }
         }
 
-        public async Task<bool?> LoadWhisperModelAsync(WhisperModelInfo? whisperModelInfo = null, int cudaDevice = -1)
+        public async Task<bool?> LoadOnnxWhisperModelAsync(WhisperModelInfo? whisperModelInfo = null, int cudaDevice = -1)
         {
             try
             {
-                var result = await this.internalClient.WhisperLoadAsync(cudaDevice, whisperModelInfo);
+                var result = await this.internalClient.OnnxLoadAsync(cudaDevice, whisperModelInfo);
                 return result;
             }
             catch (Exception ex)
@@ -828,7 +828,7 @@ namespace SharpAI.Client
             }
         }
 
-        public async Task<bool?> DisposeWhisperAsync()
+        public async Task<bool?> DisposeOnnxAsync()
         {
             try
             {
@@ -842,7 +842,7 @@ namespace SharpAI.Client
             }
         }
 
-        public async Task<double?> GetWhisperTaskProgressAsync(CancellationToken ct = default)
+        public async Task<double?> GetOnnxWhisperTaskProgressAsync(CancellationToken ct = default)
         {
             try
             {
@@ -862,11 +862,11 @@ namespace SharpAI.Client
             }
         }
 
-        public async Task<string?> RunWhisperAsync(string audioId, string? language = null, bool transcribe = false, bool useTimestamps = false, CancellationToken ct = default)
+        public async Task<string?> RunOnnxWhisperAsync(string audioId, string? language = null, bool transcribe = false, bool useTimestamps = false, CancellationToken ct = default)
         {
             try
             {
-                var result = await this.internalClient.WhisperRunAsync(
+                var result = await this.internalClient.OnnxRunAsync(
                     audioId,
                     language,
                     transcribe,
@@ -890,7 +890,7 @@ namespace SharpAI.Client
             }
         }
 
-        public async IAsyncEnumerable<string> RunWhisperStreamAsync(string audioId, string? language = null, bool transcribe = false, bool useTimestamps = false, [EnumeratorCancellation] CancellationToken ct = default)
+        public async IAsyncEnumerable<string> RunOnnxWhisperStreamAsync(string audioId, string? language = null, bool transcribe = false, bool useTimestamps = false, [EnumeratorCancellation] CancellationToken ct = default)
         {
             var url = new StringBuilder("whisper-run-stream?audioId=")
                 .Append(Uri.EscapeDataString(audioId ?? string.Empty))
@@ -936,7 +936,7 @@ namespace SharpAI.Client
             }
         }
 
-        public async Task<bool?> CancelWhisperAsync()
+        public async Task<bool?> CancelOnnxWhisperAsync()
         {
             try
             {
@@ -953,5 +953,125 @@ namespace SharpAI.Client
                 return null;
             }
         }
+
+
+
+
+        // Whisper.net
+        public async Task<string?> GetWhisperNetStatusAsync()
+        {
+            try
+            {
+                var response = await this.internalClient.WhisperStatusAsync();
+                return response;
+            }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+        public async Task<string[]> GetWhisperNetModelsAsync()
+        {
+            try
+            {
+                var response = await this.internalClient.WhisperModelsAsync();
+                return response.ToArray() ?? [];
+            }
+            catch (ApiException ex) when (ex.StatusCode == 204)
+            {
+                return [];
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return [];
+            }
+        }
+
+        public async Task<bool?> LoadWhisperNetModelAsync(string? modelName = null, bool useCuda = false)
+        {
+            try
+            {
+                var result = await this.internalClient.WhisperLoadAsync(useCuda, modelName);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+        public async Task<string?> RunWhisperNetAsync(string audioId, string? language = null, bool useCuda = false, CancellationToken ct = default)
+        {
+            try
+            {
+                var result = await this.internalClient.WhisperRunAsync(
+                    audioId, language, useCuda,
+                    null,  // isCancellationRequested
+                    null,  // canBeCanceled
+                    IntPtr.Zero,  // waitHandle_Handle
+                    null,  // waitHandle_SafeWaitHandle_IsInvalid
+                    null,  // waitHandle_SafeWaitHandle_IsClosed
+                    ct);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return null;
+            }
+        }
+
+        public async IAsyncEnumerable<string> RunWhisperNetStreamAsync(string audioId, string? language = null, bool useCuda = false, [EnumeratorCancellation] CancellationToken ct = default)
+        {
+            var url = new StringBuilder("whisper-run-stream?audioId=")
+                .Append(Uri.EscapeDataString(audioId ?? string.Empty))
+                .Append("&language=")
+                .Append(Uri.EscapeDataString(language ?? string.Empty))
+                .Append("&useCuda=")
+                .Append(useCuda.ToString())
+                .ToString();
+            using var request = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = new StringContent(string.Empty, Encoding.UTF8, "text/plain")
+            };
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+            HttpResponseMessage? response = null;
+            var failed = false;
+            try
+            {
+                response = await this.httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                response?.Dispose();
+                failed = true;
+            }
+            if (failed || response == null)
+            {
+                yield break;
+            }
+            using (response)
+            {
+                await foreach (var item in ReadSseAsync(response, ct).ConfigureAwait(false))
+                {
+                    yield return item;
+                }
+
+            }
+        }
+
+
+
+
     }
 }

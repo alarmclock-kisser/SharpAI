@@ -36,6 +36,7 @@ namespace SharpAI.Api
             builder.Services.AddSingleton<SharpAI.Core.ImageCollection>(sp => new SharpAI.Core.ImageCollection(false, appsettings.RessourceImagePaths.ToArray()));
             builder.Services.AddSingleton<SharpAI.Core.AudioHandling>(sp => new SharpAI.Core.AudioHandling(appsettings.CustomAudioExportDirectory, appsettings.RessourceAudioPaths.ToArray()));
             builder.Services.AddSingleton<SharpAI.Core.LmStudioService>();
+            builder.Services.AddSingleton<SharpAI.Runtime.WhisperService>();
 
             builder.Services.AddControllers();
             builder.Services.AddSignalR();

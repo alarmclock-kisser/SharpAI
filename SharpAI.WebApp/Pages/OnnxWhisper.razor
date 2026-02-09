@@ -1,16 +1,18 @@
-﻿@page "/whisper"
+﻿@page "/onnx"
 @using SharpAI.WebApp.ViewModels
 @using SharpAI.Shared
 @using Radzen
 @using Radzen.Blazor
 
-<RadzenHeading Size="H1" Text="Whisper (whisper.net)" />
+<RadzenHeading Size="H1" Text="Whisper" />
 
 <RadzenRow Gap="1.5rem">
     <RadzenColumn Size="12" SizeLG="4">
         <RadzenCard Variant="Variant.Outlined" Title="Audio Files">
             <ChildContent>
                 <RadzenStack Gap="0.5rem">
+                    @* Upload handled on the Audio page - remove upload UI from Whisper page *@
+
                     <RadzenFormField Text="Available audios">
                         @if (Vm.AudioInfos.Count == 0)
                         {
@@ -48,28 +50,23 @@
     </RadzenColumn>
 
     <RadzenColumn Size="12" SizeLG="8">
-        <RadzenCard Variant="Variant.Outlined" Title="Whisper Transcription (whisper.net)">
+        <RadzenCard Variant="Variant.Outlined" Title="Whisper Transcription">
             <ChildContent>
                 <RadzenStack Gap="0.75rem">
                     <RadzenFormField Text="Model">
-                        <RadzenDropDown Data="Vm.WhisperModels"
-                                       TValue="string"
-                                       @bind-Value="Vm.SelectedWhisperModel"
-                                       Disabled="@(Vm.IsInitialized)"
-                                       Style="width:100%"
-                                       Placeholder="Select a Whisper model...">
+                        <RadzenDropDown Data="Vm.WhisperModels" TextProperty="ModelName" TValue="WhisperModelInfo" @bind-Value="Vm.SelectedWhisperModel" Disabled="@(Vm.IsInitialized)" Placeholder="Select a Whisper model...">
                             <Template Context="m">
-                                @System.IO.Path.GetFileName(m)
+                                @m.ModelName (@((m.SizeInMb / 1024.0).ToString("0.00")) GB)
                             </Template>
                             <ValueTemplate Context="m">
-                                @System.IO.Path.GetFileName(m)
+                                @m.ModelName
                             </ValueTemplate>
                         </RadzenDropDown>
                     </RadzenFormField>
 
                     <RadzenRow Gap="0.5rem">
                         <RadzenColumn Size="12" SizeMD="6">
-                            <RadzenFormField Text="Language (optional)">
+                        <RadzenFormField Text="Language (optional)">
                                 <RadzenDropDown Data="Vm.Languages" TValue="string" @bind-Value="Vm.Language" Style="width:100%" />
                             </RadzenFormField>
                         </RadzenColumn>
@@ -78,12 +75,20 @@
                                 <RadzenText Text="Options" TextStyle="TextStyle.Subtitle2" />
                                 <RadzenStack Orientation="Orientation.Vertical" Gap="0.5rem">
                                     <div style="display:flex;align-items:center;gap:0.5rem;">
+                                        <RadzenCheckBox @bind-Value="Vm.Transcribe" />
+                                        <span>Transcribe (prefer spoken language)</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:0.5rem;">
+                                        <RadzenCheckBox @bind-Value="Vm.UseTimestamps" />
+                                        <span>Include timestamps</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:0.5rem;">
                                         <RadzenCheckBox @bind-Value="Vm.StreamResponse" />
                                         <span>Stream response</span>
                                     </div>
                                     <div style="display:flex;align-items:center;gap:0.5rem;">
-                                        <RadzenCheckBox @bind-Value="Vm.UseCuda" />
-                                        <span>Use CUDA (if available)</span>
+                                        <RadzenNumeric @bind-Value="Vm.CudaDeviceId" Min="-1" Max="10" Step="1" />
+                                        <span>CUDA Device ID</span>
                                     </div>
                                 </RadzenStack>
                             </RadzenStack>
@@ -94,7 +99,7 @@
                         <RadzenButton Style="@Vm.InitializeButtonStyle"
                                       Text="@Vm.InitializeButtonText"
                                       Click="@(Vm.IsInitialized ? (() => Vm.DisposeWhisperAsync()) : (() => Vm.InitializeWhisperAsync()))"
-                                      Disabled="@Vm.InitializeRunning" />
+                                      Disabled="@Vm.InitializeRunning"/>
 
                         <RadzenButton ButtonStyle="ButtonStyle.Primary"
                                       Text="@Vm.RunWhisperButtonText"
@@ -107,6 +112,11 @@
                     @if (!string.IsNullOrWhiteSpace(Vm.StatusMessage))
                     {
                         <RadzenAlert Severity="AlertSeverity.Info">@Vm.StatusMessage</RadzenAlert>
+                    }
+
+                    @if (Vm.WhisperProgress.HasValue)
+                    {
+                        <RadzenProgressBar Value="@(Vm.WhisperProgress.Value * 100)" ShowValue="true" Style="width: 100%;" />
                     }
 
                     @if (!string.IsNullOrWhiteSpace(Vm.WhisperOutput))
@@ -132,6 +142,8 @@
         return Vm.InitializeAsync();
     }
 
+
     [Inject]
-    public WhisperViewModel Vm { get; set; } = default!;
+    public OnnxWhisperViewModel Vm { get; set; } = default!;
 }
+
