@@ -1043,7 +1043,7 @@ namespace SharpAI.Client
                 Content = new StringContent(string.Empty, Encoding.UTF8, "text/plain")
             };
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
-            HttpResponseMessage? response = null;
+            HttpResponseMessage? response = null; 
             var failed = false;
             try
             {
