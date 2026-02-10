@@ -54,33 +54,34 @@
                         <RadzenStack Gap="0.75rem">
                         @foreach (var message in Vm.Messages)
                             {
+                                var msg = message; // capture to avoid closure issues
                                 <div class="message-wrapper">
                                     <RadzenCard Variant="Variant.Outlined">
                                         <ChildContent>
                                             <RadzenStack Gap="0.35rem">
-                                                <RadzenText Text="@message.Role" TextStyle="TextStyle.Subtitle2" />
-                                                @if (string.IsNullOrEmpty(message.Translation))
+                                                <RadzenText Text="@msg.Role" TextStyle="TextStyle.Subtitle2" />
+                                                @if (string.IsNullOrEmpty(msg.Translation))
                                                 {
-                                                    <div class="rz-text" style="white-space: pre-wrap;">@Vm.RenderMarkdown(message.Content)</div>
+                                                    <div class="rz-text" style="white-space: pre-wrap;">@Vm.RenderMarkdown(msg.Content)</div>
                                                 }
                                                 else
                                                 {
-                                                    <div class="rz-text" style="white-space: pre-wrap;">@Vm.RenderMarkdown(message.Translation)</div>
-												}
-                                                <RadzenText Text="@message.Timestamp.ToLocalTime().ToString("g")" TextStyle="TextStyle.Caption" />
-                                                @if (message.Role != "user" && message.Stats != null && (message.Stats.TokensUsed != 0 || message.Stats.SecondsElapsed != 0))
+                                                    <div class="rz-text" style="white-space: pre-wrap;">@Vm.RenderMarkdown(msg.Translation)</div>
+                                                }
+                                                <RadzenText Text="@msg.Timestamp.ToLocalTime().ToString("g")" TextStyle="TextStyle.Caption" />
+                                                @if (msg.Role != "user" && msg.Stats != null && (msg.Stats.TokensUsed != 0 || msg.Stats.SecondsElapsed != 0))
                                                 {
-                                                    <RadzenText Text="@($"Tokens: {message.Stats.TokensUsed} | Elapsed: {message.Stats.SecondsElapsed.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}s | Tokens/s: {message.Stats.TokensPerSecond.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}")" TextStyle="TextStyle.Caption" />
+                                                    <RadzenText Text="@($"Tokens: {msg.Stats.TokensUsed} | Elapsed: {msg.Stats.SecondsElapsed.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}s | Tokens/s: {msg.Stats.TokensPerSecond.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}")" TextStyle="TextStyle.Caption" />
                                                 }
                                             </RadzenStack>
                                         </ChildContent>
                                     </RadzenCard>
                                     <div class="translate-overlay">
-                                        @if (string.IsNullOrEmpty(message.Translation))
+                                        @if (string.IsNullOrEmpty(msg.Translation))
                                         {
-                                            <RadzenDropDown @bind-Value="selectedTranslateLanguage" Data="languages" Style="width:120px;" />
+                                            <RadzenDropDown TValue="string" @bind-Value="selectedTranslateLanguage" Data="languages" Style="width:120px;" />
                                         }
-                                        <RadzenButton Icon="language" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary" Click="async () => await Vm.TranslateMessageAsync(message, selectedTranslateLanguage)" Text="@(string.IsNullOrEmpty(message.Translation) ? "Translate" : "Original")"></RadzenButton>
+                                        <RadzenButton Icon="language" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary" Click="async () => { await Vm.TranslateMessageAsync(msg, selectedTranslateLanguage); await InvokeAsync(StateHasChanged); }" Text="@(string.IsNullOrEmpty(msg.Translation) ? "Translate" : "Original")"></RadzenButton>
                                     </div>
                                 </div>
                             }

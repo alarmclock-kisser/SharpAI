@@ -492,19 +492,22 @@ INSTRUCTION: Answer the FINAL_TEXT. Use the KEYMAP (pauses, backspaces) to under
 
         try
         {
-            if (string.IsNullOrEmpty(message.Translation))
+            if (!message.IsTranslated)
             {
                 // Strip markdown/HTML to provide clean plain text to the translation API
                 var sourceText = this.RemoveMarkup(message.Content);
                 var translated = await this.api.GoogleTranslateAsync(sourceText, null, targetLanguage);
+                // Only accept non-empty translations
                 if (!string.IsNullOrWhiteSpace(translated))
                 {
                     message.Translation = translated;
+                    message.IsTranslated = true;
                 }
             }
             else
             {
-                // Translation was not empty, show original content
+                // Toggle back to original
+                message.IsTranslated = false;
                 message.Translation = null;
             }
 
@@ -532,6 +535,7 @@ INSTRUCTION: Answer the FINAL_TEXT. Use the KEYMAP (pauses, backspaces) to under
         public string Role { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
         public string? Translation { get; set; } = null;
+        public bool IsTranslated { get; set; } = false;
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
         public LlamaContextStats? Stats { get; set; }
     }
